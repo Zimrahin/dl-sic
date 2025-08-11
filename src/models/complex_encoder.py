@@ -3,23 +3,23 @@ import torch.nn as nn
 import complextorch
 
 
-class ComplexHierarchicalEncoder(nn.Module):
+class ComplexEncoder(nn.Module):
     """
-    Complex Hierarchical Encoder (CHE) as described in Guo et al., 2024.
+    Complex Encoder (CHE) from Guo et al., 2024.
     """
 
     def __init__(
         self,
         in_channels: int = 1,
-        mid_channels: int = 128,  # M in the paper
-        out_channels: int = 32,  # N in the paper
+        mid_channels: int = 128,  # M in paper
+        out_channels: int = 32,  # N in paper
         *,
-        kernel_size: int = 2,  # J in the paper
+        kernel_size: int = 2,  # J in paper
     ) -> None:
         super().__init__()
         padding = (kernel_size - 1) // 2
 
-        self.conv1 = nn.Conv1d(
+        self.conv_in = nn.Conv1d(
             in_channels=in_channels,
             out_channels=mid_channels,
             kernel_size=kernel_size,
@@ -29,7 +29,7 @@ class ComplexHierarchicalEncoder(nn.Module):
 
         self.layer_norm = complextorch.nn.LayerNorm(normalized_shape=mid_channels)
 
-        self.conv2 = nn.Conv1d(
+        self.conv_out = nn.Conv1d(
             in_channels=mid_channels,
             out_channels=out_channels,
             kernel_size=kernel_size,
@@ -39,13 +39,12 @@ class ComplexHierarchicalEncoder(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        - x: **complex** tensor with shape (B, 1, T)
-        - returns: **complex** tensor y with shape (B, out_channels, T2)
+        Input shape: (B, in_channels, T) complex tensor
         """
         if not torch.is_complex(x):
-            raise TypeError("CHE expects a complex tensor")
+            raise TypeError("ComplexEncoder expects a complex tensor")
 
-        z = self.conv1(x)  # (B, mid_channels, T1)
+        z = self.conv_in(x)  # (B, mid_channels, T)
         z = self.layer_norm(z)
-        y = self.conv2(z)  # (B, out_channels, T2)
+        y = self.conv_out(z)  # (B, out_channels, T)
         return y
