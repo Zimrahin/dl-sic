@@ -1,23 +1,7 @@
 import torch
 import torch.nn as nn
 import complextorch
-
-
-class ComplexPReLU(nn.Module):
-    """
-    Complex PReLU (Parametric Rectified Linear Activation Unit) activation function.
-    """
-
-    def __init__(
-        self, num_parameters: int = 1, init: float = 0.01, device=None, dtype=None
-    ) -> None:
-        super().__init__()
-        self.act = nn.PReLU(num_parameters, init, device, dtype)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        if not torch.is_complex(x):
-            raise TypeError("ComplexPReLU expects a complex tensor")
-        return torch.complex(self.act(x.real), self.act(x.imag))
+from activation_functions import ComplexPReLU
 
 
 class ComplexDilatedConv(nn.Module):
