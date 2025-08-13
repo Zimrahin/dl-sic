@@ -5,7 +5,7 @@ import complextorch
 
 class ComplexEncoder(nn.Module):
     """
-    Complex Encoder (CHE) from Guo et al., 2024.
+    Complex Encoder from Guo et al., 2024.
     """
 
     def __init__(
@@ -17,13 +17,12 @@ class ComplexEncoder(nn.Module):
         kernel_size: int = 2,  # J in paper
     ) -> None:
         super().__init__()
-        padding = (kernel_size - 1) // 2
 
         self.conv_in = nn.Conv1d(
             in_channels=in_channels,
             out_channels=mid_channels,
             kernel_size=kernel_size,
-            padding=padding,
+            padding="same",
             dtype=torch.complex64,
         )
 
@@ -33,7 +32,7 @@ class ComplexEncoder(nn.Module):
             in_channels=mid_channels,
             out_channels=out_channels,
             kernel_size=kernel_size,
-            padding=padding,
+            padding="same",
             dtype=torch.complex64,
         )
 
@@ -47,4 +46,4 @@ class ComplexEncoder(nn.Module):
         z = self.conv_in(x)  # (B, mid_channels, T)
         z = self.layer_norm(z)
         y = self.conv_out(z)  # (B, out_channels, T)
-        return y
+        return y, z

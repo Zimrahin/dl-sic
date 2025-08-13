@@ -21,13 +21,12 @@ class ComplexDilatedConv(nn.Module):
         number_dconvs: int = 2,  # Number of dilated conv layers
     ) -> None:
         super().__init__()
-        padding_dconv = dilation * (kernel_size - 1) // 2
 
         self.conv_in = nn.Conv1d(
             in_channels=in_channels,
             out_channels=mid_channels,  # Expand channels to mid_channels to match dilated conv size
             kernel_size=1,  # Assume pointwise 1x1-conv (based on Conv-TasNet, Luo et al., 2019)
-            padding=0,
+            padding="same",
             dtype=torch.complex64,
         )
 
@@ -39,7 +38,7 @@ class ComplexDilatedConv(nn.Module):
                 in_channels=mid_channels,
                 out_channels=mid_channels,
                 kernel_size=kernel_size,
-                padding=padding_dconv,
+                padding="same",
                 dilation=dilation,
                 dtype=torch.complex64,
             )
@@ -53,7 +52,7 @@ class ComplexDilatedConv(nn.Module):
             in_channels=mid_channels,
             out_channels=in_channels,  # Back to input size
             kernel_size=1,  # Assume pointwise 1x1-conv (based on Conv-TasNet, Luo et al., 2019)
-            padding=0,
+            padding="same",
             dtype=torch.complex64,
         )
 
