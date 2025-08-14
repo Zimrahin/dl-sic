@@ -38,12 +38,12 @@ class ComplexEncoder(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Input shape: (B, in_channels, T) complex tensor
+        Input shape: (batch, in_channels, T) complex tensor
         """
         if not torch.is_complex(x):
             raise TypeError("ComplexEncoder expects a complex tensor")
 
-        z = self.conv_in(x)  # (B, mid_channels, T)
+        z = self.conv_in(x)  # (batch, mid_channels, T)
         z = self.layer_norm(z)
-        y = self.conv_out(z)  # (B, out_channels, T)
+        y = self.conv_out(z)  # (batch, out_channels, T)
         return y, z

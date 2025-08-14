@@ -20,7 +20,7 @@ class CTDCR_net(nn.Module):
         U: int = 128,  # Middle channels in complex dilated convolution
         H: int = 32,  # Hidden size in complex LSTM
         V: int = 8,  # Dilated convolutions on each side of the LSTM
-    ):
+    ) -> None:
         super().__init__()
         self.encoder = ComplexEncoder(in_channels=1, mid_channels=M, out_channels=N)
 
@@ -64,25 +64,35 @@ class CTDCR_net(nn.Module):
         # self.decoder = ComplexEncoder(in_channels=M, mid_channels=N, out_channels=1)
         self.decoder = ComplexDecoder(in_channels=M, out_channels=1)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Input shape: (B, 1, T) complex tensor
+        Input shape: (batch, T) or (batch, 1, T) complex tensor
+        Output shape: same as input shape
         """
-        y, z = self.encoder(x)  # (B, N, T), (B, M, T)
+        # Input shape handling
+        original_shape = x.shape
+        if x.dim() == 2:
+            x = x.unsqueeze(1)  # (batch, 1, T)
+        if x.size(1) != 1:
+            raise ValueError(f"Expected 1 input channel, got {x.size(1)} channels")
+
+        # Forward pass
+        y, z = self.encoder(x)  # (batch, N, T), (batch, M, T)
 
         for cdc in self.cdc_left:
-            y = cdc(y)  # (B, N, T)
+            y = cdc(y)  # (batch, N, T)
 
-        y = self.lstm(y)  # (B, N, T)
+        y = self.lstm(y)  # (batch, N, T)
 
         for cdc in self.cdc_right:
-            y = cdc(y)  # (B, N, T)
+            y = cdc(y)  # (batch, N, T)
 
         y = self.prelu_out(y)  # Based on Conv-TasNet, Luo et al., 2019, Fig. 1.B
-        y = self.conv_out(y)  # (B, M, T)
-        y = self.sigmoid_out(y)  # (B, M, T)
+        y = self.conv_out(y)  # (batch, M, T)
+        y = self.sigmoid_out(y)  # (batch, M, T)
 
         s = y * z  # Elementwise (Hadamard) product
         s = self.decoder(s)
 
         return s
+

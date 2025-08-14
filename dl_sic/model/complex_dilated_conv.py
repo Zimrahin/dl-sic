@@ -58,22 +58,22 @@ class ComplexDilatedConv(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Input shape: (B, in_channels, T) complex tensor
+        Input shape: (batch, in_channels, T) complex tensor
         """
         if not torch.is_complex(x):
             raise TypeError("ComplexDilatedConv expects a complex tensor.")
 
         # Bottleneck, from in_channels to mid_channels
-        y = self.conv_in(x)  # (B, mid_channels, T)
-        y = self.prelu_in(y)  # (B, mid_channels, T)
-        y = self.layer_norm_in(y)  # (B, mid_channels, T)
+        y = self.conv_in(x)  # (batch, mid_channels, T)
+        y = self.prelu_in(y)  # (batch, mid_channels, T)
+        y = self.layer_norm_in(y)  # (batch, mid_channels, T)
 
         for dconv in self.dconvs:
             y = dconv(y)
 
         # Bottleneck, from mid_channels to in_channels
-        y = self.prelu_out(y)  # (B, mid_channels, T)
-        y = self.layer_norm_out(y)  # (B, mid_channels, T)
-        y = self.conv_out(x)  # (B, in_channels, T)
+        y = self.prelu_out(y)  # (batch, mid_channels, T)
+        y = self.layer_norm_out(y)  # (batch, mid_channels, T)
+        y = self.conv_out(x)  # (batch, in_channels, T)
 
         return y + x  # Skip connection

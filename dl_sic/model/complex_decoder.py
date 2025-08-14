@@ -29,9 +29,9 @@ class ComplexDecoder(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Input shape: (B, in_channels, T) complex tensor
+        Input shape: (batch, in_channels, T) complex tensor
         """
         if not torch.is_complex(x):
             raise TypeError("ComplexDecoder expects a complex tensor")
 
-        return self.conv_in(x)  # (B, 1, T)
+        return self.conv_in(x)  # (batch, 1, T)
