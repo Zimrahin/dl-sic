@@ -22,28 +22,20 @@ class ComplexLSTM(nn.Module):
     ) -> None:
         super().__init__()
 
-        self.lstm_real = nn.LSTM(
-            input_size,
-            hidden_size,
-            num_layers,
-            batch_first,
-            dropout,
-            bidirectional,
-            proj_size,
-            device,
-            dtype,
-        )
-        self.lstm_imag = nn.LSTM(
-            input_size,
-            hidden_size,
-            num_layers,
-            batch_first,
-            dropout,
-            bidirectional,
-            proj_size,
-            device,
-            dtype,
-        )
+        lstm_kwargs = {
+            "input_size": input_size,
+            "hidden_size": hidden_size,
+            "num_layers": num_layers,
+            "batch_first": batch_first,
+            "bidirectional": bidirectional,
+            "dropout": dropout,
+            "proj_size": proj_size,
+            "device": device,
+            "dtype": dtype,
+        }
+
+        self.lstm_real = nn.LSTM(**lstm_kwargs)
+        self.lstm_imag = nn.LSTM(**lstm_kwargs)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -53,9 +45,9 @@ class ComplexLSTM(nn.Module):
             raise TypeError("ComplexLSTM expects a complex tensor")
 
         # Follow (batch, in_channels, T) convention
-        # Convert from (batch, C, T) to (batch, T, C)
-        x_real = torch.permute(x.real, (0, 2, 1))
-        x_imag = torch.permute(x.imag, (0, 2, 1))
+        # Convert from (batch, channels, T) to (batch, T, channels)
+        x_real = x.real.permute(0, 2, 1)
+        x_imag = x.imag.permute(0, 2, 1)
 
         out_r1, _ = self.lstm_real(x_real)
         out_i1, _ = self.lstm_imag(x_imag)
@@ -65,5 +57,22 @@ class ComplexLSTM(nn.Module):
         out_i2, _ = self.lstm_imag(x_real)
         L_i = out_r2 + out_i2
 
-        # Convert back from (batch, T, C) to (batch, C, T)
+        # Convert back from (batch, T, channels) to (batch, channels, T)
         return torch.complex(L_r, L_i).permute(0, 2, 1)
+
+
+def test_model():
+    in_channels = 32  # N
+    batch_size = 4
+    signal_length = 2048  # T
+
+    input = torch.rand((batch_size, in_channels, signal_length), dtype=torch.complex64)
+    model = ComplexLSTM(in_channels)
+    output: torch.Tensor = model(input)  # Forward pass
+
+    print("Input shape:", input.shape)
+    print("Output shape:", output.shape)
+
+
+if __name__ == "__main__":
+    test_model()

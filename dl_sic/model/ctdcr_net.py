@@ -20,9 +20,17 @@ class CTDCR_net(nn.Module):
         U: int = 128,  # Middle channels in complex dilated convolution
         H: int = 32,  # Hidden size in complex LSTM
         V: int = 8,  # Dilated convolutions on each side of the LSTM
+        *,
+        encoder_kernel_size: int = 3,  # Changed from 2 to 3 (odd, keep same size)
+        decoder_kernel_size: int = 3,  # Changed from 2 to 3 (odd, keep same size)
     ) -> None:
         super().__init__()
-        self.encoder = ComplexEncoder(in_channels=1, mid_channels=M, out_channels=N)
+        self.encoder = ComplexEncoder(
+            in_channels=1,
+            mid_channels=M,
+            out_channels=N,
+            kernel_size=encoder_kernel_size,
+        )
 
         self.cdc_left = nn.ModuleList(
             ComplexDilatedConv(
@@ -46,7 +54,7 @@ class CTDCR_net(nn.Module):
         )
 
         # Based on Conv-TasNet, Luo et al., 2019, Fig. 1.B
-        self.prelu_out = ComplexPReLU
+        self.prelu_out = ComplexPReLU()
         self.conv_out = nn.Conv1d(
             in_channels=N,
             out_channels=M,  # Expand channels to mid_channels to match z
@@ -62,7 +70,9 @@ class CTDCR_net(nn.Module):
         # But Luo et al., 2019: Encoder doesn't include LayerNorm and the second Conv layer
         # Also, input comes from z ∈ MxT in ComplexEncoder.
         # self.decoder = ComplexEncoder(in_channels=M, mid_channels=N, out_channels=1)
-        self.decoder = ComplexDecoder(in_channels=M, out_channels=1)
+        self.decoder = ComplexDecoder(
+            in_channels=M, out_channels=1, kernel_size=decoder_kernel_size
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -70,7 +80,7 @@ class CTDCR_net(nn.Module):
         Output shape: same as input shape
         """
         # Input shape handling
-        original_shape = x.shape
+        original_dim = x.dim()
         if x.dim() == 2:
             x = x.unsqueeze(1)  # (batch, 1, T)
         if x.size(1) != 1:
@@ -94,5 +104,34 @@ class CTDCR_net(nn.Module):
         s = y * z  # Elementwise (Hadamard) product
         s = self.decoder(s)
 
+        if original_dim == 2:
+            s = s.squeeze(1)  # (batch, T)
+
         return s
 
+
+def test_model():
+    batch_size = 4
+    signal_length = 2048  # T
+
+    model = CTDCR_net()
+
+    print(f"\nTotal Parameters: {sum(p.numel() for p in model.parameters()):,}")
+
+    print("Testing 3D input")
+    input = torch.rand((batch_size, 1, signal_length), dtype=torch.complex64)
+    output: torch.Tensor = model(input)  # Forward pass
+
+    print("Input shape:", input.shape)
+    print("Output shape:", output.shape)
+
+    print("Testing 2D input")
+    input = torch.rand((batch_size, signal_length), dtype=torch.complex64)
+    output: torch.Tensor = model(input)  # Forward pass
+
+    print("Input shape:", input.shape)
+    print("Output shape:", output.shape)
+
+
+if __name__ == "__main__":
+    test_model()

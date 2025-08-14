@@ -14,7 +14,7 @@ class ComplexEncoder(nn.Module):
         mid_channels: int = 128,  # M in paper
         out_channels: int = 32,  # N in paper
         *,
-        kernel_size: int = 2,  # J in paper
+        kernel_size: int = 3,  # J in paper, changed from 2 to 3 (even -> odd)
     ) -> None:
         super().__init__()
 
@@ -43,7 +43,30 @@ class ComplexEncoder(nn.Module):
         if not torch.is_complex(x):
             raise TypeError("ComplexEncoder expects a complex tensor")
 
-        z = self.conv_in(x)  # (batch, mid_channels, T)
+        z: torch.Tensor = self.conv_in(x)  # (batch, mid_channels, T)
+
+        # Prepare for LayerNorm: permute to (batch, T, mid_channels)
+        z = z.permute(0, 2, 1)  # (batch, T, mid_channels)
         z = self.layer_norm(z)
+        z = z.permute(0, 2, 1)  # (batch, mid_channels, T)
+
         y = self.conv_out(z)  # (batch, out_channels, T)
         return y, z
+
+
+def test_model():
+    in_channels = 1
+    batch_size = 4
+    signal_length = 2048  # T
+
+    input = torch.rand((batch_size, in_channels, signal_length), dtype=torch.complex64)
+    model = ComplexEncoder(in_channels)
+    output, middle_layer = model(input)  # Forward pass
+
+    print("Input shape:", input.shape)
+    print("Middle shape:", middle_layer.shape)
+    print("Output shape:", output.shape)
+
+
+if __name__ == "__main__":
+    test_model()

@@ -66,14 +66,35 @@ class ComplexDilatedConv(nn.Module):
         # Bottleneck, from in_channels to mid_channels
         y = self.conv_in(x)  # (batch, mid_channels, T)
         y = self.prelu_in(y)  # (batch, mid_channels, T)
-        y = self.layer_norm_in(y)  # (batch, mid_channels, T)
+        y = y.permute(0, 2, 1)  # (batch, T, mid_channels)
+        y = self.layer_norm_in(y)
+        y = y.permute(0, 2, 1)  # (batch, mid_channels, T)
 
         for dconv in self.dconvs:
             y = dconv(y)
 
         # Bottleneck, from mid_channels to in_channels
         y = self.prelu_out(y)  # (batch, mid_channels, T)
-        y = self.layer_norm_out(y)  # (batch, mid_channels, T)
-        y = self.conv_out(x)  # (batch, in_channels, T)
+        y = y.permute(0, 2, 1)  # (batch, T, mid_channels)
+        y = self.layer_norm_out(y)
+        y = y.permute(0, 2, 1)  # (batch, mid_channels, T)
+        y = self.conv_out(y)  # (batch, in_channels, T)
 
         return y + x  # Skip connection
+
+
+def test_model():
+    in_channels = 32
+    batch_size = 4
+    signal_length = 2048  # T
+
+    input = torch.rand((batch_size, in_channels, signal_length), dtype=torch.complex64)
+    model = ComplexDilatedConv(in_channels)
+    output: torch.Tensor = model(input)  # Forward pass
+
+    print("Input shape:", input.shape)
+    print("Output shape:", output.shape)
+
+
+if __name__ == "__main__":
+    test_model()
