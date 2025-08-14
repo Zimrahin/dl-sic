@@ -58,9 +58,11 @@ def test_model():
     in_channels = 1
     batch_size = 4
     signal_length = 2048  # T
+    model = ComplexEncoder(in_channels)
+
+    print(f"\nTotal Parameters: {sum(p.numel() for p in model.parameters()):,}")
 
     input = torch.rand((batch_size, in_channels, signal_length), dtype=torch.complex64)
-    model = ComplexEncoder(in_channels)
     output, middle_layer = model(input)  # Forward pass
 
     print("Input shape:", input.shape)

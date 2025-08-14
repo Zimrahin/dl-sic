@@ -18,7 +18,7 @@ class ComplexDecoder(nn.Module):
         super().__init__()
         padding = (kernel_size - 1) // 2
 
-        self.conv_in = nn.Conv1d(
+        self.conv_in = nn.ConvTranspose1d(
             in_channels=in_channels,
             out_channels=out_channels,
             kernel_size=kernel_size,
@@ -40,9 +40,11 @@ def test_model():
     in_channels = 128
     batch_size = 4
     signal_length = 2048  # T
+    model = ComplexDecoder(in_channels)
+
+    print(f"\nTotal Parameters: {sum(p.numel() for p in model.parameters()):,}")
 
     input = torch.rand((batch_size, in_channels, signal_length), dtype=torch.complex64)
-    model = ComplexDecoder(in_channels)
     output = model(input)  # Forward pass
 
     print("Input shape:", input.shape)

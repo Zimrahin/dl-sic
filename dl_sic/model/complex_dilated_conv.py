@@ -40,6 +40,7 @@ class ComplexDilatedConv(nn.Module):
                 kernel_size=kernel_size,
                 padding="same",
                 dilation=dilation,
+                groups=mid_channels,  # Depthwise convolution (Conv-TasNet, Luo et al., 2019))
                 dtype=torch.complex64,
             )
             for _ in range(number_dconvs)
@@ -87,9 +88,11 @@ def test_model():
     in_channels = 32
     batch_size = 4
     signal_length = 2048  # T
+    model = ComplexDilatedConv(in_channels)
+
+    print(f"\nTotal Parameters: {sum(p.numel() for p in model.parameters()):,}")
 
     input = torch.rand((batch_size, in_channels, signal_length), dtype=torch.complex64)
-    model = ComplexDilatedConv(in_channels)
     output: torch.Tensor = model(input)  # Forward pass
 
     print("Input shape:", input.shape)
