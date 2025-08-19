@@ -67,7 +67,7 @@ def test_model():
     signal_length = 2048  # T
     model = ComplexLSTM(in_channels)
 
-    print(f"\nTotal Parameters: {sum(p.numel() for p in model.parameters()):,}")
+    print(f"Total Parameters: {sum(p.numel() for p in model.parameters()):,}")
 
     input = torch.rand((batch_size, in_channels, signal_length), dtype=torch.complex64)
     output: torch.Tensor = model(input)  # Forward pass

@@ -116,7 +116,7 @@ def test_model():
 
     model = CTDCR_net()
 
-    print(f"\nTotal Parameters: {sum(p.numel() for p in model.parameters()):,}")
+    print(f"Total Parameters: {sum(p.numel() for p in model.parameters()):,}")
 
     print("Testing 3D input")
     input = torch.rand((batch_size, 1, signal_length), dtype=torch.complex64)
