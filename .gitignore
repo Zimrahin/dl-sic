@@ -1,2 +1,3 @@
 __pycache__/
 .venv/
+dl_sic/checkpoints/

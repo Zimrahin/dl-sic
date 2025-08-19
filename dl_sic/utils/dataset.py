@@ -7,9 +7,7 @@ class DummyDataset(torch.utils.data.Dataset):
     Dummy random dataset generator for forward pass verification
     """
 
-    def __init__(
-        self, num_signals: int = 100, signal_length: int = 1024, seed: int = 0
-    ):
+    def __init__(self, num_signals: int, signal_length: int = 1024, seed: int = 0):
         self.num_signals = num_signals
         self.signal_length = signal_length
         self.seed = seed

@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 import complextorch
-from activation_functions import ComplexPReLU
+
+from .activation_functions import ComplexPReLU
 
 
 class ComplexDilatedConv(nn.Module):

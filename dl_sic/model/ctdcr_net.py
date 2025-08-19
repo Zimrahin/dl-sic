@@ -1,11 +1,11 @@
 import torch
 import torch.nn as nn
 
-from complex_encoder import ComplexEncoder
-from complex_dilated_conv import ComplexDilatedConv
-from complex_lstm import ComplexLSTM
-from complex_decoder import ComplexDecoder
-from activation_functions import ComplexPReLU, ComplexSigmoid
+from .complex_encoder import ComplexEncoder
+from .complex_dilated_conv import ComplexDilatedConv
+from .complex_lstm import ComplexLSTM
+from .complex_decoder import ComplexDecoder
+from .activation_functions import ComplexPReLU, ComplexSigmoid
 
 
 class CTDCR_net(nn.Module):
