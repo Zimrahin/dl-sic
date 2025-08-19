@@ -8,8 +8,21 @@ Deep Learning-based Successive Interference Cancellation for BLE and IEEE 802.15
 
 
 ---
+### Unit Testing
 To execute unit tests, run them as Python modules from the project root. For example:
 
 ```bash
 python -m dl_sic.model.ctdcr_net
 ```
+---
+### Checkpoints and Logging
+
+When running `train.py`, the following files are written to `./checkpoints/` (relative to the folder where `train.py` is executed):
+
+- `best_model_weights.pth` – stores the weights of the best model so far
+- `last_checkpoint.pth` – stores the most recent model checkpoint
+- `training_log.json` – records training history
+
+⚠️ These files are **overwritten** each time training is started.
+
+If the `--resume` flag is provided, training will continue from the last stored checkpoint instead of starting fresh.

@@ -3,11 +3,10 @@ import argparse
 import time
 import torch
 import torch.nn as nn
-from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from model.ctdcr_net import CTDCR_net
-from utils.misc import set_seed
+from utils.training import set_seed, TrainingLogger
 from utils.dataset import DummyDataset, create_dataloaders
 from utils.loss_functions import mse_loss_complex
 
@@ -19,9 +18,6 @@ def train_epoch(
     optimiser: torch.optim.Optimizer,
     loss_function: callable,
     device: torch.device,
-    *,
-    log_interval: int = 1,  # Log every log_interval batches
-    writer: None | SummaryWriter = None,
 ) -> float:
     """Train model for one epoch"""
     # docs.pytorch.org/tutorials/intermediate/pinmem_nonblock.html
@@ -33,7 +29,7 @@ def train_epoch(
     progress_bar = tqdm(
         enumerate(train_loader),
         total=len(train_loader),
-        desc=f"Train Epoch {epoch}",
+        desc=f"Train epoch {epoch}",
         mininterval=1.0,  # Update at most once per second
         leave=True,
     )
@@ -53,9 +49,6 @@ def train_epoch(
         total_loss += loss.item()
         avg_loss = total_loss / (batch_idx + 1)
         progress_bar.set_postfix(loss=f"{avg_loss:.4f}")
-        if writer and (batch_idx % log_interval == 0):
-            step = epoch * len(train_loader) + batch_idx
-            writer.add_scalar("Loss/train", loss.item(), step)
 
     return total_loss / len(train_loader)  # Average epoch loss
 
@@ -66,8 +59,6 @@ def validate_epoch(
     val_loader: torch.utils.data.DataLoader,
     loss_function: callable,
     device: torch.device,
-    *,
-    writer: None | SummaryWriter = None,
 ) -> float:
     """Validate model with forward pass"""
     # docs.pytorch.org/tutorials/intermediate/pinmem_nonblock.html
@@ -79,7 +70,7 @@ def validate_epoch(
     progress_bar = tqdm(
         enumerate(val_loader),
         total=len(val_loader),
-        desc=f"Validation Epoch {epoch}",
+        desc=f"Validation epoch {epoch}",
         leave=True,  # Keep progress bar after completion
     )
 
@@ -96,8 +87,6 @@ def validate_epoch(
             progress_bar.set_postfix(loss=f"{avg_loss:.4f}")
 
     avg_epoch_loss = total_loss / len(val_loader)
-    if writer:
-        writer.add_scalar("Loss/val", avg_epoch_loss, epoch)
 
     return avg_epoch_loss
 
@@ -112,10 +101,9 @@ def train_ctdcr_net(
     *,
     resume: bool = False,
 ) -> None:
-    tensorboard = True
-    log_interval = 10  # Default log interval for TensorBoard
     seed = 0  # For reproducibility
     checkpoints_dir = "./checkpoints"
+    logger = TrainingLogger(checkpoints_dir, resume=resume)
 
     # discuss.pytorch.org/t/guidelines-for-assigning-num-workers-to-dataloader/813/25
     num_workers = 0  # Default DataLoader value
@@ -125,15 +113,10 @@ def train_ctdcr_net(
     os.makedirs(checkpoints_dir, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
-    writer = (
-        SummaryWriter(log_dir=os.path.join(checkpoints_dir, "logs"))
-        if tensorboard
-        else None
-    )
 
     # Initialise model, dataloaders, loss function, and optimiser
     model = CTDCR_net(M, N, U, H, V).to(device)
-    print(f"Total Parameters: {sum(p.numel() for p in model.parameters()):,}")
+    print(f"Trainable parameters: {sum(p.numel() for p in model.parameters()):,}")
     train_loader, val_loader = create_dataloaders(
         dataset,
         batch_size,
@@ -146,7 +129,9 @@ def train_ctdcr_net(
     optimiser = torch.optim.Adam(
         model.parameters(), lr=learning_rate, weight_decay=weight_decay
     )
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimiser, mode="min")
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimiser, mode="min", patience=5
+    )
 
     start_epoch = 0
     best_val_loss = float("inf")
@@ -154,7 +139,7 @@ def train_ctdcr_net(
     if resume:
         checkpoint_path = os.path.join(checkpoints_dir, "last_checkpoint.pth")
         if os.path.isfile(checkpoint_path):
-            print(f"Loading checkpoint '{checkpoint_path}'")
+            print(f"Loading checkpoint: '{checkpoint_path}'")
             checkpoint = torch.load(checkpoint_path)
             start_epoch = checkpoint["epoch"]
             best_val_loss = checkpoint["best_val_loss"]
@@ -162,6 +147,15 @@ def train_ctdcr_net(
             optimiser.load_state_dict(checkpoint["optimiser_state"])
             scheduler.load_state_dict(checkpoint["scheduler_state"])
             print(f"Checkpoint loaded at epoch {checkpoint['epoch']}")
+
+            # Verify logger is at the right epoch
+            last_logged_epoch = logger.get_last_epoch()
+            if last_logged_epoch != start_epoch - 1:
+                raise RuntimeError(
+                    f"Log shows last epoch as {last_logged_epoch}, "
+                    f"but checkpoint is for epoch {start_epoch}. "
+                    "Log and checkpoint are out of sync."
+                )
         else:
             raise FileNotFoundError(f"No checkpoint found at {checkpoint_path}")
 
@@ -176,8 +170,6 @@ def train_ctdcr_net(
             optimiser=optimiser,
             loss_function=loss_function,
             device=device,
-            log_interval=log_interval,
-            writer=writer,
         )
         val_loss = validate_epoch(
             model=model,
@@ -185,7 +177,6 @@ def train_ctdcr_net(
             val_loader=val_loader,
             loss_function=loss_function,
             device=device,
-            writer=writer,
         )
         scheduler.step(val_loss)  # Reduce learning rate on plateau
 
@@ -199,6 +190,8 @@ def train_ctdcr_net(
             )
             print(f"New best model saved with val loss: {best_val_loss:.6f}")
 
+        # Logs and checkpoints
+        logger.log_epoch(epoch, train_loss, val_loss, best_val_loss)
         torch.save(
             {
                 "epoch": epoch + 1,
@@ -216,8 +209,6 @@ def train_ctdcr_net(
             f"Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}"
         )
 
-    if writer:
-        writer.close()
     print("Training completed!")
 
 
@@ -240,7 +231,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     train_ctdcr_net(
-        dataset=DummyDataset(num_signals=20, signal_length=2048),
+        dataset=DummyDataset(num_signals=20, signal_length=1024),
         batch_size=args.batch_size,
         epochs=args.epochs,
         val_split=args.val_split,
