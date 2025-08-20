@@ -100,7 +100,11 @@ def train_ctdcr_net(
     weight_decay: float = 0.0,
     *,
     resume: bool = False,
+    pretrained_weights: str | None = None,
 ) -> None:
+    if resume and pretrained_weights is not None:
+        raise ValueError("Cannot use both --resume and --pretrained_weights")
+
     seed = 0  # For reproducibility
     checkpoints_dir = "./checkpoints"
     logger = TrainingLogger(checkpoints_dir, resume=resume)
@@ -159,6 +163,16 @@ def train_ctdcr_net(
         else:
             raise FileNotFoundError(f"No checkpoint found at {checkpoint_path}")
 
+    if pretrained_weights:
+        if os.path.isfile(pretrained_weights):
+            print(f"Loading pretrained weights from: '{pretrained_weights}'")
+            model.load_state_dict(torch.load(pretrained_weights))
+            print("Pretrained weights loaded. Starting training from epoch 0")
+        else:
+            raise FileNotFoundError(
+                f"No pretrained weights found at {pretrained_weights}"
+            )
+
     # Training loop
     for epoch in range(start_epoch, epochs):
         epoch_start = time.time()
@@ -186,7 +200,7 @@ def train_ctdcr_net(
             best_val_loss = val_loss
             torch.save(
                 model.state_dict(),
-                os.path.join(checkpoints_dir, "best_model_weights.pth"),
+                os.path.join(checkpoints_dir, "best_weights.pth"),
             )
             print(f"New best model saved with val loss: {best_val_loss:.6f}")
 
@@ -206,7 +220,7 @@ def train_ctdcr_net(
         epoch_time = time.time() - epoch_start
         print(
             f"Epoch {epoch} completed in {epoch_time:.2f}s - "
-            f"Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}"
+            f"train loss: {train_loss:.6f}, val loss: {val_loss:.6f}"
         )
 
     print("Training completed!")
@@ -228,6 +242,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--resume", action="store_true", help="Resume training from checkpoint"
     )
+    parser.add_argument(
+        "--pretrained_weights",
+        type=str,
+        default=None,
+        help="Path to pretrained weights file",
+    )
     args = parser.parse_args()
 
     train_ctdcr_net(
@@ -238,4 +258,5 @@ if __name__ == "__main__":
         learning_rate=args.lr,
         weight_decay=args.weight_decay,
         resume=args.resume,
+        pretrained_weights=args.pretrained_weights,
     )

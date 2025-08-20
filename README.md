@@ -19,7 +19,7 @@ python -m dl_sic.model.ctdcr_net
 
 When running `train.py`, the following files are written to `./checkpoints/` (relative to the folder where `train.py` is executed):
 
-- `best_model_weights.pth` – stores the weights of the best model so far
+- `best_weights.pth` – stores the weights of the best model so far
 - `last_checkpoint.pth` – stores the most recent model checkpoint
 - `training_log.json` – records training history
 
