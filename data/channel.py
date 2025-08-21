@@ -1,12 +1,16 @@
 # Should include
 # fading ✅, sdd randomness in
-#     power_delay_profile (both in length and in its keys/values)
-#     Rician K-factor: random[0,10] -> 0 is Rayleigh. K -> infty -> AWGN channel
+#   power_delay_profile (both in length and in its keys/values)
+#   Rician K-factor: random[0,10] -> 0 is Rayleigh. K -> infty -> AWGN channel
 # frequency offsets,
 # awgn ✅,
 # phase offsets,
 # time delays,
-# IQ imbalance
+# IQ imbalance ✅
+#   add tiny randomness in imbalance
+#       (0 - 0.3 dB)
+#       (0 - 2 degrees)
+#
 
 from gnuradio import blocks, gr, channels
 import numpy as np
@@ -85,3 +89,34 @@ def add_white_gaussian_noise(
         # White Gaussian noise power is equal to its variance
         noise = np.sqrt(noise_power) * np.random.normal(0, 1, len(signal))
     return signal + noise
+
+
+def apply_iq_imbalance(
+    signal: np.ndarray,
+    magnitude: float = 0,
+    phase: float = 0,
+    tx_mode: bool = True,
+    magnitude_in_db: bool = True,
+    phase_in_degrees: bool = True,
+) -> np.ndarray:
+    """
+    Applies IQ imbalance to a complex signal following GNU Radio's approach.
+    """
+    magnitude_linear = 10 ** (magnitude / 20.0) if magnitude_in_db else magnitude
+    phase_rad = phase * np.pi / 180.0 if phase_in_degrees else phase
+
+    I_in = np.real(signal)
+    Q_in = np.imag(signal)
+
+    if tx_mode:
+        # Transmitter Mode
+        I_mag = magnitude_linear * I_in
+        I_out = np.cos(phase_rad) * I_mag
+        Q_out = np.sin(phase_rad) * I_mag + Q_in
+    else:
+        # Receiver Mode
+        I_processed = np.cos(phase_rad) * I_in + np.sin(phase_rad) * Q_in
+        I_out = magnitude_linear * I_processed
+        Q_out = Q_in
+
+    return I_out + 1j * Q_out
