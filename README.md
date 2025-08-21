@@ -31,6 +31,7 @@ If the `--resume` flag is provided, training will continue from the last stored 
 ## Installation
 
 1. **Install PyTorch**
+
    Choose the appropriate command for your system from [pytorch.org](https://pytorch.org/get-started/locally/).
    Example for CPU-only on Linux:
    ```bash
@@ -40,4 +41,14 @@ If the `--resume` flag is provided, training will continue from the last stored 
 2. **Install the remaining dependencies**
    ```bash
    pip install -r requirements.txt
+   ```
+
+3. **Note on NumPy compatibility**
+
+   I encountered NumPy version conflicts with my GNU Radio installation using `numpy<2.2.0`.
+   Although `complextorch` library requires `numpy>=2.2.0`, it doesn't actually need it to work properly.
+
+   The following workaround worked for me, after having installed `complextorch` (tested with `complextorch 1.2.0`):
+   ```bash
+   pip install --upgrade "numpy<2.0"
    ```
