@@ -1,12 +1,9 @@
 # Should include
-# fading, sdd randomness in
+# fading ✅, sdd randomness in
 #     power_delay_profile (both in length and in its keys/values)
 #     Rician K-factor: random[0,10] -> 0 is Rayleigh. K -> infty -> AWGN channel
-#
-#
-#
 # frequency offsets,
-# awgn,
+# awgn ✅,
 # phase offsets,
 # time delays,
 # IQ imbalance
@@ -70,3 +67,21 @@ def fading_model(
     tb.run()
 
     return np.array(sink.data())
+
+
+def add_white_gaussian_noise(
+    signal: np.ndarray, noise_power: float, noise_power_db: bool = True
+) -> np.ndarray:
+    """Adds white noise to a signal (complex or real)."""
+    if noise_power_db:
+        noise_power = 10 ** (noise_power / 10)
+    if np.iscomplexobj(signal):
+        # Half the power in I and Q components respectively
+        noise = np.sqrt(noise_power) * (
+            np.random.normal(0, np.sqrt(2) / 2, len(signal))
+            + 1j * np.random.normal(0, np.sqrt(2) / 2, len(signal))
+        )
+    else:
+        # White Gaussian noise power is equal to its variance
+        noise = np.sqrt(noise_power) * np.random.normal(0, 1, len(signal))
+    return signal + noise
