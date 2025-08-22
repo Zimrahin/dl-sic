@@ -1,17 +1,3 @@
-# Should include
-# fading ✅, sdd randomness in
-#   power_delay_profile (both in length and in its keys/values)
-#   Rician K-factor: random[0,10] -> 0 is Rayleigh. K -> infty -> AWGN channel
-# frequency offsets ✅,
-# awgn ✅,
-# phase offsets ✅,
-# time delays ✅ (fractional delay),
-# IQ imbalance ✅
-#   add tiny randomness in imbalance
-#       (0 - 0.3 dB)
-#       (0 - 2 degrees)
-#
-
 from gnuradio import blocks, gr, channels
 import numpy as np
 import scipy
@@ -160,12 +146,18 @@ def fractional_delay_fir_filter(
     return delayed_output
 
 
-def frequency_offset(
-    signal: np.ndarray, sample_rate: float, freq_offset: float
+def multiply_by_complex_exponential(
+    input_signal: np.ndarray,
+    sample_rate: float,
+    freq: float,
+    phase: float = 0,
+    amplitude: float = 1,
+    offset: complex = 0,
 ) -> np.ndarray:
-    t = np.arange(len(signal)) / sample_rate
-    return signal * np.exp(1j * 2 * np.pi * freq_offset * t)
+    """Multiply an input complex exponential."""
+    t = np.arange(input_signal.size) / sample_rate
+    complex_exponential = offset + amplitude * np.exp(
+        1j * (2 * np.pi * freq * t + phase)
+    )
 
-
-def phase_offset(signal: np.ndarray, phase_offset: float) -> np.ndarray:
-    return signal * np.exp(1j * phase_offset)
+    return input_signal * complex_exponential
