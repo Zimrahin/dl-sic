@@ -52,7 +52,7 @@ def half_sine_fir_taps(sps: int) -> np.ndarray:
 def oqpsk_modulate(
     I_chips: np.ndarray, Q_chips: np.ndarray, fir_taps: np.ndarray, sps: int
 ) -> np.ndarray:
-    from .filters import fractional_delay_fir_filter
+    from .channel import fractional_delay_fir_filter
 
     """Modulate input I_chips and Q_chips in quadrature, with half a symbol offset."""
     assert I_chips.shape == Q_chips.shape, "I_chips and Q_chips must have the same size"

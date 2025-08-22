@@ -2,10 +2,10 @@
 # fading ✅, sdd randomness in
 #   power_delay_profile (both in length and in its keys/values)
 #   Rician K-factor: random[0,10] -> 0 is Rayleigh. K -> infty -> AWGN channel
-# frequency offsets,
+# frequency offsets ✅,
 # awgn ✅,
-# phase offsets,
-# time delays,
+# phase offsets ✅,
+# time delays ✅ (fractional delay),
 # IQ imbalance ✅
 #   add tiny randomness in imbalance
 #       (0 - 0.3 dB)
@@ -14,9 +14,10 @@
 
 from gnuradio import blocks, gr, channels
 import numpy as np
+import scipy
 
 
-def fading_model(
+def frequency_selective_fading(
     input_samples: np.ndarray,
     sample_rate: float | int,
     *,
@@ -91,7 +92,7 @@ def add_white_gaussian_noise(
     return signal + noise
 
 
-def apply_iq_imbalance(
+def iq_imbalance(
     signal: np.ndarray,
     magnitude: float = 0,
     phase: float = 0,
@@ -120,3 +121,49 @@ def apply_iq_imbalance(
         Q_out = Q_in
 
     return I_out + 1j * Q_out
+
+
+def fractional_delay_fir_filter(
+    data: np.ndarray, delay: float, num_taps: int = 21, same_size: bool = True
+) -> np.ndarray:
+    """
+    Applies a delay to the input data by first applying a fractional delay using an FIR filter,
+    and then applying an integer delay via sample shifting with zero-padding.
+    """
+    # Separate delay into its integer and fractional parts
+    integer_delay = int(np.floor(delay))
+    fractional_delay = delay - integer_delay
+
+    # Build the FIR filter taps for the fractional delay
+    n = np.arange(-num_taps // 2, num_taps // 2)  # ...-3,-2,-1,0,1,2,3...
+    fir_kernel = np.sinc(n - fractional_delay)  # Shifted sinc function
+    # fir_kernel *= np.hamming(len(n))  # Hamming window (avoid spectral leakage)
+    fir_kernel /= np.sum(fir_kernel)  # Normalise filter taps, unity gain
+    frac_delayed = scipy.signal.convolve(data, fir_kernel, mode="full")  # Apply filter
+
+    # Compensate for the intrinsic delay caused by convolution
+    frac_delayed = np.roll(frac_delayed, -num_taps // 2)
+    if same_size:
+        frac_delayed = frac_delayed[: len(data)]
+    else:
+        frac_delayed = frac_delayed[: len(data) + num_taps // 2]
+
+    # Integer delay and pad with zeros
+    delayed_output = np.zeros_like(frac_delayed)
+    if integer_delay < len(frac_delayed):
+        delayed_output[integer_delay:] = frac_delayed[
+            : len(frac_delayed) - integer_delay
+        ]
+
+    return delayed_output
+
+
+def frequency_offset(
+    signal: np.ndarray, sample_rate: float, freq_offset: float
+) -> np.ndarray:
+    t = np.arange(len(signal)) / sample_rate
+    return signal * np.exp(1j * 2 * np.pi * freq_offset * t)
+
+
+def phase_offset(signal: np.ndarray, phase_offset: float) -> np.ndarray:
+    return signal * np.exp(1j * phase_offset)
