@@ -137,23 +137,25 @@ def fractional_delay_fir_filter(
     # Build the FIR filter taps for the fractional delay
     n = np.arange(-num_taps // 2, num_taps // 2)  # ...-3,-2,-1,0,1,2,3...
     fir_kernel = np.sinc(n - fractional_delay)  # Shifted sinc function
-    # fir_kernel *= np.hamming(len(n))  # Hamming window (avoid spectral leakage)
+    # fir_kernel *= np.hamming(len(n))
     fir_kernel /= np.sum(fir_kernel)  # Normalise filter taps, unity gain
     frac_delayed = scipy.signal.convolve(data, fir_kernel, mode="full")  # Apply filter
 
     # Compensate for the intrinsic delay caused by convolution
     frac_delayed = np.roll(frac_delayed, -num_taps // 2)
-    if same_size:
-        frac_delayed = frac_delayed[: len(data)]
-    else:
-        frac_delayed = frac_delayed[: len(data) + num_taps // 2]
+    frac_delayed = frac_delayed[: len(data)]
 
-    # Integer delay and pad with zeros
-    delayed_output = np.zeros_like(frac_delayed)
-    if integer_delay < len(frac_delayed):
-        delayed_output[integer_delay:] = frac_delayed[
-            : len(frac_delayed) - integer_delay
-        ]
+    # Apply integer delay with zero-padding to the left
+    if same_size:
+        delayed_output = np.zeros_like(frac_delayed)
+        if integer_delay < len(frac_delayed):
+            delayed_output[integer_delay:] = frac_delayed[
+                : len(frac_delayed) - integer_delay
+            ]
+    else:
+        # Just add zeros to the left
+        delayed_output = np.zeros(len(frac_delayed) + integer_delay)
+        delayed_output[integer_delay : integer_delay + len(frac_delayed)] = frac_delayed
 
     return delayed_output
 
