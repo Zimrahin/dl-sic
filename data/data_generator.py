@@ -152,14 +152,16 @@ class SignalDatasetGenerator:
         s2 = self._modulate_random_packet("802154", self.cfg.signal_length)
 
         # Amplitudes will be used to compute SNR to weaker signal
+        s1_target = self._delay_and_offsets(s1)
+        s2_target = self._delay_and_offsets(s2)
         amplitude1 = np.random.uniform(*self.cfg.amplitude_range)
         amplitude2 = np.random.uniform(*self.cfg.amplitude_range)
-        s1_offset = self._delay_and_offsets(s1) * amplitude1
-        s2_offset = self._delay_and_offsets(s2) * amplitude2
+        s1_out = amplitude1 * s1_target
+        s2_out = amplitude2 * s2_target
 
         # Apply fading channel + AWGN
-        s1_out = self._apply_fading_channel(s1_offset)
-        s2_out = self._apply_fading_channel(s2_offset)
+        s1_out = self._apply_fading_channel(s1_out)
+        s2_out = self._apply_fading_channel(s2_out)
         snr_db = np.random.uniform(*self.cfg.snr_low_db_range)  # SNR of weaker signal
         noise_power = min(amplitude1, amplitude2) ** 2 / (10 ** (snr_db / 10))
         mixture = add_white_gaussian_noise(
@@ -171,8 +173,8 @@ class SignalDatasetGenerator:
 
         return (
             torch.from_numpy(mixture).clone(),  # Use as NN inpu
-            torch.from_numpy(s1_offset).clone(),  # Use as target
-            torch.from_numpy(s2_offset).clone(),  # Use as target
+            torch.from_numpy(s1_target).clone(),  # Use as target
+            torch.from_numpy(s2_target).clone(),  # Use as target
         )
 
     def generate_dataset(self) -> list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
