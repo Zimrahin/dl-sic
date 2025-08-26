@@ -179,7 +179,9 @@ class SignalDatasetGenerator:
 
     def generate_dataset(self) -> list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
         dataset = [None] * self.cfg.num_signals
-        for i in tqdm(range(self.cfg.num_signals), desc="Generating dataset"):
+        for i in tqdm(
+            range(self.cfg.num_signals), desc="Generating dataset", mininterval=1.0
+        ):
             dataset[i] = self._generate_mixture()
 
         return dataset
