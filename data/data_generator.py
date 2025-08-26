@@ -171,6 +171,11 @@ class SignalDatasetGenerator:
         # Apply IQ imbalance at receiver
         mixture = self._apply_iq_imbalance(mixture, tx_mode=False)
 
+        # Ensure correct dtype for PyTorch
+        mixture = mixture.astype(np.complex64)
+        s1_target = s1_target.astype(np.complex64)
+        s2_target = s2_target.astype(np.complex64)
+
         return (
             torch.from_numpy(mixture).clone(),  # Use as NN inpu
             torch.from_numpy(s1_target).clone(),  # Use as target
@@ -277,7 +282,9 @@ if __name__ == "__main__":
             raise FileNotFoundError(f"File {args.read} not found")
 
         dataset = torch.load(args.read)
-        print(f"Loaded dataset with {len(dataset)} examples")
+        print(
+            f"Loaded dataset with {len(dataset)} examples, of {len(dataset[0][0])} samples each"
+        )
 
         while True:
             try:
