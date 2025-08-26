@@ -10,24 +10,29 @@ from simulation.channel import (
     multiply_by_complex_exponential,
 )
 
+import argparse
+import matplotlib.pyplot as plt
+import os
+from tqdm import tqdm
+
 
 @dataclass
 class SimulationConfig:
     sample_rate: float = 4e6
-    num_signals: int = 1000
-    signal_length: int = 20000  # Samples
-    ble_payload_size_range: tuple[int, int] = (10, 240)
-    ieee802154_payload_size_range: tuple[int, int] = (10, 60)
+    num_signals: int = 10000
+    signal_length: int = 8192  # Samples
+    ble_payload_size_range: tuple[int, int] = (20, 141)  # Max exclusive
+    ieee802154_payload_size_range: tuple[int, int] = (5, 36)  # Max exclusive
     # Channel/impairment ranges
-    amplitude_range: tuple[float, float] = (0.2, 1.0)
-    freq_offset_range: tuple[float, float] = (-30e3, 30e3)
+    amplitude_range: tuple[float, float] = (0.4, 1.0)
+    freq_offset_range: tuple[float, float] = (-20e3, 20e3)
     sample_delay_range: tuple[float, float] = (0.0, 2000.0)
-    snr_low_db_range: tuple[float, float] = (-20.0, 0.0)  # SNR weaker signal
+    snr_low_db_range: tuple[float, float] = (5.0, 20.0)  # SNR weaker signal
     iq_imb_phase_range: tuple[float, float] = (0, 2)  # degrees
     iq_imb_mag_range: tuple[float, float] = (0, 0.3)  # dB
-    rician_factor_range: tuple[float, float] = (0, 10.0)
+    rician_factor_range: tuple[float, float] = (0.0, 20.0)
     fading_max_doppler_speed: float = 20.0
-    fading_pdp_max_size: int = 5
+    fading_pdp_max_size: int = 3  # Maximum fading paths
     fading_pdp_delay_range: tuple[float, float] = (0.0, 2.0)
     fading_pdp_power_range: tuple[float, float] = (0.99, 0.1)
     seed: int | None = None
@@ -172,7 +177,118 @@ class SignalDatasetGenerator:
 
     def generate_dataset(self) -> list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
         dataset = [None] * self.cfg.num_signals
-        for i in range(self.cfg.num_signals):
+        for i in tqdm(range(self.cfg.num_signals), desc="Generating dataset"):
             dataset[i] = self._generate_mixture()
 
         return dataset
+
+
+def plot_signals(
+    mixture: torch.Tensor,
+    target1: torch.Tensor,
+    target2: torch.Tensor,
+    sample_rate: float,
+    index: int | None = None,
+) -> None:
+    """Plot mixture and targets in 3x1 subplot with shared x-axis"""
+    _, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True, figsize=(10, 8))
+    if torch.is_tensor(mixture):
+        mixture = mixture.numpy()
+        target1 = target1.numpy()
+        target2 = target2.numpy()
+    time_axis = np.arange(len(mixture)) / sample_rate * 1000
+
+    ax1.plot(time_axis, np.real(mixture), alpha=0.7)
+    ax1.plot(time_axis, np.imag(mixture), alpha=0.7)
+    ax1.set_ylabel("Amplitude (-)")
+    ax1.set_title(
+        "Mixture Signal" if index is None else f"Mixture Signal (Index {index})"
+    )
+    ax1.grid(True)
+
+    ax2.plot(time_axis, np.real(target1), alpha=0.7)
+    ax2.plot(time_axis, np.imag(target1), alpha=0.7)
+    ax2.set_ylabel("Amplitude (-)")
+    ax2.set_title("Target 1 (BLE)")
+    ax2.grid(True)
+
+    ax3.plot(time_axis, np.real(target2), alpha=0.7)
+    ax3.plot(time_axis, np.imag(target2), alpha=0.7)
+    ax3.set_ylabel("Amplitude (-)")
+    ax3.set_title("Target 2 (802.15.4)")
+    ax3.set_xlabel("Time (ms)")
+    ax3.grid(True)
+
+    max_mixture = np.max(np.abs(mixture))
+    ax1.set_ylim(-max_mixture - 0.1, max_mixture + 0.1)
+    ax2.set_ylim(-max_mixture - 0.1, max_mixture + 0.1)
+    ax3.set_ylim(-max_mixture - 0.1, max_mixture + 0.1)
+
+    plt.tight_layout()
+    plt.show()
+
+
+if __name__ == "__main__":
+    DEFAULT_DATASET_PATH = "simulated_dataset.pt"
+
+    parser = argparse.ArgumentParser(description="Dataset Generator")
+    parser.add_argument(
+        "--test", action="store_true", help="Generate and plot single example"
+    )
+    parser.add_argument(
+        "--save",
+        nargs="?",
+        const=DEFAULT_DATASET_PATH,
+        default=None,
+        type=str,
+        help=f"Path to save dataset (default: {DEFAULT_DATASET_PATH})",
+    )
+    parser.add_argument(
+        "--read",
+        nargs="?",
+        const=DEFAULT_DATASET_PATH,
+        default=None,
+        type=str,
+        help=f"Path to load dataset for inspection (default: {DEFAULT_DATASET_PATH})",
+    )
+    args = parser.parse_args()
+
+    config = SimulationConfig()
+    generator = SignalDatasetGenerator(config)
+
+    if args.test:
+        # Generate and plot single example
+        mixture, target1, target2 = generator._generate_mixture()
+        plot_signals(mixture, target1, target2, config.sample_rate)
+
+    elif args.save is not None:
+        # Generate and save full dataset
+        dataset = generator.generate_dataset()
+        torch.save(dataset, args.save)
+        print(f"Saved dataset with {len(dataset)} examples to {args.save}")
+
+    elif args.read is not None:
+        # Load dataset and start interactive inspection
+        if not os.path.exists(args.read):
+            raise FileNotFoundError(f"File {args.read} not found")
+
+        dataset = torch.load(args.read)
+        print(f"Loaded dataset with {len(dataset)} examples")
+
+        while True:
+            try:
+                idx = input("Enter index to plot (q to quit): ")
+                if idx.lower() == "q":
+                    break
+
+                idx = int(idx)
+                if 0 <= idx < len(dataset):
+                    mixture, target1, target2 = dataset[idx]
+                    plot_signals(mixture, target1, target2, config.sample_rate, idx)
+                else:
+                    print(f"Index must be between 0 and {len(dataset)-1}")
+
+            except ValueError:
+                print("Please enter a valid integer or 'q' to quit")
+            except KeyboardInterrupt:
+                break
