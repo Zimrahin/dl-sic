@@ -99,7 +99,7 @@ class SignalDatasetGenerator:
         power_range: tuple[float, float] = (0.99, 0.1),
     ) -> dict[float, float]:
         """Generate a random power delay profile dict with flexible size (>=1)."""
-        size = np.random.randint(1, max_size)
+        size = np.random.randint(1, max_size + 1)
         if size == 1:
             return {0.0: 1.0}  # Equivalent to flat fading
         delays = sorted(
