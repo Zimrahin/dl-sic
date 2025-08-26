@@ -69,6 +69,25 @@ def create_dataloaders(
     return train_loader, val_loader
 
 
-# Later here:
-# - Define a function/class that generates and stores actual dataset (actual BLE and IEEE 802.15.4 mixtures)
-# - Define a torch.utils.data.Dataset class to load the stored dataset (pickle)
+class LoadDataset(torch.utils.data.Dataset):
+    """
+    Dataset loader
+    """
+
+    def __init__(self, file_path: str, target: int):
+        self.data = torch.load(file_path)
+        self.target = target  # Use BLE (1) or IEEE 802.15.4 (2) as target
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        mixture, target1, target2 = self.data[idx]
+
+        targets = {1: target1, 2: target2}
+        try:
+            target = targets[self.target]
+        except KeyError:
+            raise ValueError("Target must be 1 (BLE) or 2 (IEEE 802.15.4)")
+
+        return mixture, target
