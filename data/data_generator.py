@@ -45,13 +45,19 @@ class SignalDatasetGenerator:
         """Generate a random packet and modulate it"""
         if protocol == "ble":
             payload = np.random.randint(
-                0, 256, size=np.random.randint(*self.cfg.ble_payload_size_range)
+                0,
+                256,
+                size=np.random.randint(*self.cfg.ble_payload_size_range),
+                dtype=np.uint8,
             )
             base_address = np.random.randint(0, 2**32, dtype=np.uint32)
             modulated_signal = self.ble_tx.modulate_from_payload(payload, base_address)
         else:
             payload = np.random.randint(
-                0, 256, size=np.random.randint(*self.cfg.ieee802154_payload_size_range)
+                0,
+                256,
+                size=np.random.randint(*self.cfg.ieee802154_payload_size_range),
+                dtype=np.uint8,
             )
             modulated_signal = self.ieee802154_tx.modulate_from_payload(payload)
 
