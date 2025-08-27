@@ -71,23 +71,27 @@ def create_dataloaders(
 
 class LoadDataset(torch.utils.data.Dataset):
     """
-    Dataset loader
+    Dataset loader. Uses BLE (1) or IEEE 802.15.4 (2) as target
     """
 
-    def __init__(self, file_path: str, target: int):
-        self.data = torch.load(file_path)
-        self.target = target  # Use BLE (1) or IEEE 802.15.4 (2) as target
+    def __init__(self, file_path: str, target_idx: int):
+        dataset: torch.utils.data.TensorDataset = torch.load(
+            file_path, weights_only=False
+        )
+        all_tensors = dataset.tensors
+        if target_idx < 1 or target_idx >= len(all_tensors):
+            raise ValueError(f"Target index must be between 1 and {len(all_tensors)-1}")
+
+        # The first tensor is the input (mixture), the rest are targets
+        self.mixtures = all_tensors[0]
+        # Store only the selected target tensor
+        self.target_tensor = all_tensors[target_idx]
+
+        del all_tensors
+        del dataset
 
     def __len__(self):
-        return len(self.data)
+        return len(self.mixtures)
 
     def __getitem__(self, idx):
-        mixture, target1, target2 = self.data[idx]
-
-        targets = {1: target1, 2: target2}
-        try:
-            target = targets[self.target]
-        except KeyError:
-            raise ValueError("Target must be 1 (BLE) or 2 (IEEE 802.15.4)")
-
-        return mixture, target
+        return self.mixtures[idx], self.target_tensor[idx]
