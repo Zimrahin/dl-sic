@@ -171,25 +171,32 @@ class SignalDatasetGenerator:
         # Apply IQ imbalance at receiver
         mixture = self._apply_iq_imbalance(mixture, tx_mode=False)
 
-        # Ensure correct dtype for PyTorch
-        mixture = mixture.astype(np.complex64)
-        s1_target = s1_target.astype(np.complex64)
-        s2_target = s2_target.astype(np.complex64)
-
         return (
-            torch.from_numpy(mixture).clone(),  # Use as NN inpu
-            torch.from_numpy(s1_target).clone(),  # Use as target
-            torch.from_numpy(s2_target).clone(),  # Use as target
+            mixture.astype(np.complex64),  # NN Input
+            s1_target.astype(np.complex64),  # Target
+            s2_target.astype(np.complex64),  # Target
         )
 
-    def generate_dataset(self) -> list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
-        dataset = [None] * self.cfg.num_signals
+    def generate_dataset(self) -> torch.utils.data.TensorDataset:
+        # Pre-allocate tensors for entire dataset
+        mixtures = torch.empty(
+            (self.cfg.num_signals, self.cfg.signal_length), dtype=torch.complex64
+        )
+        s1_targets = torch.empty(
+            (self.cfg.num_signals, self.cfg.signal_length), dtype=torch.complex64
+        )
+        s2_targets = torch.empty(
+            (self.cfg.num_signals, self.cfg.signal_length), dtype=torch.complex64
+        )
         for i in tqdm(
             range(self.cfg.num_signals), desc="Generating dataset", mininterval=1.0
         ):
-            dataset[i] = self._generate_mixture()
+            mixture_np, s1_np, s2_np = self._generate_mixture()
+            mixtures[i] = torch.from_numpy(mixture_np)
+            s1_targets[i] = torch.from_numpy(s1_np)
+            s2_targets[i] = torch.from_numpy(s2_np)
 
-        return dataset
+        return torch.utils.data.TensorDataset(mixtures, s1_targets, s2_targets)
 
 
 def plot_signals(
@@ -281,9 +288,12 @@ if __name__ == "__main__":
         if not os.path.exists(args.read):
             raise FileNotFoundError(f"File {args.read} not found")
 
-        dataset = torch.load(args.read)
+        # Load with weights_only=False for compatibility
+        dataset = torch.load(args.read, weights_only=False)
+        mixtures, s1_targets, s2_targets = dataset.tensors
+
         print(
-            f"Loaded dataset with {len(dataset)} examples, of {len(dataset[0][0])} samples each"
+            f"Loaded dataset with {len(mixtures)} examples, of {mixtures.shape[1]} samples each"
         )
 
         while True:
@@ -293,11 +303,13 @@ if __name__ == "__main__":
                     break
 
                 idx = int(idx)
-                if 0 <= idx < len(dataset):
-                    mixture, target1, target2 = dataset[idx]
+                if 0 <= idx < len(mixtures):
+                    mixture = mixtures[idx]
+                    target1 = s1_targets[idx]
+                    target2 = s2_targets[idx]
                     plot_signals(mixture, target1, target2, config.sample_rate, idx)
                 else:
-                    print(f"Index must be between 0 and {len(dataset)-1}")
+                    print(f"Index must be between 0 and {len(mixtures)-1}")
 
             except ValueError:
                 print("Please enter a valid integer or 'q' to quit")
