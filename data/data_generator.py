@@ -20,13 +20,13 @@ from tqdm import tqdm
 class SimulationConfig:
     sample_rate: float = 4e6
     num_signals: int = 10000
-    signal_length: int = 8192  # Samples
-    ble_payload_size_range: tuple[int, int] = (20, 141)  # Max exclusive
-    ieee802154_payload_size_range: tuple[int, int] = (5, 36)  # Max exclusive
+    signal_length: int = 4096  # Samples
+    ble_payload_size_range: tuple[int, int] = (70, 71)  # Max exclusive
+    ieee802154_payload_size_range: tuple[int, int] = (15, 16)  # Max exclusive
     # Channel/impairment ranges
     amplitude_range: tuple[float, float] = (0.4, 1.0)
     freq_offset_range: tuple[float, float] = (-20e3, 20e3)
-    sample_delay_range: tuple[float, float] = (0.0, 2000.0)
+    sample_delay_range: tuple[float, float] = (0, 1000)
     snr_low_db_range: tuple[float, float] = (5.0, 20.0)  # SNR weaker signal
     iq_imb_phase_range: tuple[float, float] = (0, 2)  # degrees
     iq_imb_mag_range: tuple[float, float] = (0, 0.3)  # dB
