@@ -3,33 +3,16 @@ import numpy as np
 
 
 class DummyDataset(torch.utils.data.Dataset):
-    """
-    Dummy random dataset generator for forward pass verification
-    """
-
     def __init__(self, num_signals: int, signal_length: int = 1024, seed: int = 0):
-        self.num_signals = num_signals
-        self.signal_length = signal_length
-        self.seed = seed
-
         torch.manual_seed(seed)
-        np.random.seed(seed)
-
-        self.data = self._generate_data()
+        self.mixture = torch.randn(num_signals, signal_length, dtype=torch.complex64)
+        self.target = torch.randn(num_signals, signal_length, dtype=torch.complex64)
 
     def __len__(self):
-        return self.num_signals
+        return self.mixture.shape[0]
 
     def __getitem__(self, idx: int):
-        return self.data[idx]
-
-    def _generate_data(self) -> list:
-        data = [None] * self.num_signals
-        for i in range(self.num_signals):
-            mixture = torch.randn(self.signal_length, dtype=torch.complex64)
-            target = torch.randn(self.signal_length, dtype=torch.complex64)
-            data[i] = (mixture, target)
-        return data
+        return self.mixture[idx], self.target[idx]
 
 
 def create_dataloaders(
