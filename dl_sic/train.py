@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from model.ctdcr_net import CTDCR_net
 from utils.training import set_seed, TrainingLogger
-from utils.dataset import DummyDataset, create_dataloaders
+from utils.dataset import DummyDataset, LoadDataset, create_dataloaders
 from utils.loss_functions import mse_loss_complex
 
 
@@ -101,6 +101,7 @@ def train_ctdcr_net(
     *,
     resume: bool = False,
     pretrained_weights: str | None = None,
+    num_workers: int = 0,  # Default DataLoader value
 ) -> None:
     if resume and pretrained_weights is not None:
         raise ValueError("Cannot use both --resume and --pretrained_weights")
@@ -109,8 +110,6 @@ def train_ctdcr_net(
     checkpoints_dir = "./checkpoints"
     logger = TrainingLogger(checkpoints_dir, resume=resume)
 
-    # discuss.pytorch.org/t/guidelines-for-assigning-num-workers-to-dataloader/813/25
-    num_workers = 0  # Default DataLoader value
     M, N, U, H, V = 128, 32, 128, 32, 8  # CTDCR net parameters
 
     set_seed(seed)
@@ -248,10 +247,32 @@ if __name__ == "__main__":
         default=None,
         help="Path to pretrained weights file",
     )
+    parser.add_argument(
+        "--target",
+        type=int,
+        default=1,
+        help="Use BLE (1) or IEEE 802.15.4 (2) as target",
+    )
+    parser.add_argument(
+        "--dataset_path",
+        type=str,
+        default=None,
+        help="Path to dataset file (.pt) to load.",
+    )
+    parser.add_argument(
+        "--num_workers",
+        type=int,
+        default=0,
+        help="Number of subprocesses for data loading.",
+    )
     args = parser.parse_args()
 
+    # Loads all the dataset in RAM. Must change later (this is what DataLoaders are used for)
+    dataset = LoadDataset(args.dataset_path, target_idx=args.target)
+    # dataset = DummyDataset(10000, 4096)
+
     train_ctdcr_net(
-        dataset=DummyDataset(num_signals=20, signal_length=1024),
+        dataset=dataset,
         batch_size=args.batch_size,
         epochs=args.epochs,
         val_split=args.val_split,
@@ -259,4 +280,5 @@ if __name__ == "__main__":
         weight_decay=args.weight_decay,
         resume=args.resume,
         pretrained_weights=args.pretrained_weights,
+        num_workers=args.num_workers,
     )
