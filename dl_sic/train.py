@@ -48,7 +48,7 @@ def train_epoch(
         # Update epoch loss and log
         total_loss += loss.item()
         avg_loss = total_loss / (batch_idx + 1)
-        progress_bar.set_postfix(loss=f"{avg_loss:.4f}")
+        progress_bar.set_postfix(loss=f"{avg_loss:.5f}")
 
     return total_loss / len(train_loader)  # Average epoch loss
 
@@ -257,13 +257,13 @@ if __name__ == "__main__":
         "--dataset_path",
         type=str,
         default=None,
-        help="Path to dataset file (.pt) to load.",
+        help="Path to dataset file (.pt) to load",
     )
     parser.add_argument(
         "--num_workers",
         type=int,
         default=0,
-        help="Number of subprocesses for data loading.",
+        help="Number of subprocesses for data loading",
     )
     args = parser.parse_args()
 
