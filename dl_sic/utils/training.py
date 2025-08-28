@@ -49,7 +49,7 @@ class TrainingLogger:
             "timestamps": [],
             "best_val_loss": float("inf"),
         }
-        print(f"Created new training log: {self.log_path}")
+        print(f"New training log will be stored at {self.log_path}")
 
     def _load_log(self):
         with open(self.log_path, "r") as f:

@@ -8,7 +8,7 @@ from tqdm import tqdm
 from model.ctdcr_net import CTDCR_net
 from utils.training import set_seed, TrainingLogger
 from utils.dataset import DummyDataset, LoadDataset, create_dataloaders
-from utils.loss_functions import mse_loss_complex
+from utils.loss_functions import mse_loss_complex, si_snr_loss_complex
 
 
 def train_epoch(
@@ -48,7 +48,7 @@ def train_epoch(
         # Update epoch loss and log
         total_loss += loss.item()
         avg_loss = total_loss / (batch_idx + 1)
-        progress_bar.set_postfix(loss=f"{avg_loss:.5f}")
+        progress_bar.set_postfix(loss=f"{avg_loss:.2f}")
 
     return total_loss / len(train_loader)  # Average epoch loss
 
@@ -128,12 +128,15 @@ def train_ctdcr_net(
         val_split=val_split,
         split_seed=seed,
     )
-    loss_function = mse_loss_complex
+    loss_function = lambda pred, target: torch.mean(
+        mse_loss_complex(pred, target) - si_snr_loss_complex(pred, target)
+    )  # Batch average
+
     optimiser = torch.optim.Adam(
         model.parameters(), lr=learning_rate, weight_decay=weight_decay
     )
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimiser, mode="min", patience=5
+        optimiser, mode="min", patience=3
     )
 
     start_epoch = 0
@@ -228,12 +231,14 @@ def train_ctdcr_net(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="CTDCR Network Training")
     parser.add_argument(
-        "--batch_size", type=int, default=4, help="Input batch size for training"
+        "--batch_size", type=int, default=1, help="Input batch size for training"
     )
     parser.add_argument(
         "--epochs", type=int, default=50, help="Number of epochs to train"
     )
-    parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
+    parser.add_argument(
+        "--learning_rate", type=float, default=1e-3, help="Learning rate"
+    )
     parser.add_argument("--weight_decay", type=float, default=0, help="Weight decay")
     parser.add_argument(
         "--val_split", type=float, default=0.2, help="Validation split ratio"
@@ -276,7 +281,7 @@ if __name__ == "__main__":
         batch_size=args.batch_size,
         epochs=args.epochs,
         val_split=args.val_split,
-        learning_rate=args.lr,
+        learning_rate=args.learning_rate,
         weight_decay=args.weight_decay,
         resume=args.resume,
         pretrained_weights=args.pretrained_weights,
