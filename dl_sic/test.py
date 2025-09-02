@@ -52,9 +52,10 @@ def plot_test_signals(
     ax3.legend()
     ax3.grid(True)
 
-    ax1.set_ylim(-1.1, 1.1)
-    ax2.set_ylim(-1.1, 1.1)
-    ax3.set_ylim(-1.1, 1.1)
+    max_all = np.max(np.abs(np.concatenate([mixture, target, output])))
+    ax1.set_ylim(-max_all - 0.1, max_all + 0.1)
+    ax2.set_ylim(-max_all - 0.1, max_all + 0.1)
+    ax3.set_ylim(-max_all - 0.1, max_all + 0.1)
 
     plt.tight_layout()
     plt.show()
