@@ -14,7 +14,7 @@ def mse_loss_complex(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
 
 
 def si_snr_loss_complex(
-    pred: torch.Tensor, target: torch.Tensor, zero_mean=True, eps=1e-8
+    pred: torch.Tensor, target: torch.Tensor, zero_mean: bool = True, eps: float = 1e-8
 ) -> torch.Tensor:
     """Scale-invariant signal-to-noise ratio (SI-SNR) loss function"""
     # Reference: github.com/JusperLee/Conv-TasNet/blob/master/Conv_TasNet_Pytorch/SI_SNR.py

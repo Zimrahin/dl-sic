@@ -48,7 +48,7 @@ def train_epoch(
         # Update epoch loss and log
         total_loss += loss.item()
         avg_loss = total_loss / (batch_idx + 1)
-        progress_bar.set_postfix(loss=f"{avg_loss:.2f}")
+        progress_bar.set_postfix(loss=f"{avg_loss:.4f}")
 
     return total_loss / len(train_loader)  # Average epoch loss
 
@@ -128,9 +128,11 @@ def train_ctdcr_net(
         val_split=val_split,
         split_seed=seed,
     )
-    loss_function = lambda pred, target: torch.mean(
-        mse_loss_complex(pred, target) - si_snr_loss_complex(pred, target)
-    )  # Batch average
+    # loss_function = lambda pred, target: torch.mean(
+    #     0 * mse_loss_complex(pred, target) - si_snr_loss_complex(pred, target)
+    # )  # Batch average
+    # loss_function = mse_loss_complex
+    loss_function = -si_snr_loss_complex
 
     optimiser = torch.optim.Adam(
         model.parameters(), lr=learning_rate, weight_decay=weight_decay
