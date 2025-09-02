@@ -144,6 +144,7 @@ if __name__ == "__main__":
 
     M, N, U, H, V = 128, 32, 128, 32, 8  # CTDCR net parameters
     model = CTDCR_net(M, N, U, H, V).to(device)  # Initialise model
+    print(f"Trainable parameters: {sum(p.numel() for p in model.parameters()):,}")
 
     # Load checkpoint
     if os.path.exists(args.checkpoint_path):
