@@ -1,16 +1,20 @@
 import torch
 
 
-def mse_loss_complex(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+def mse_loss_complex(
+    pred: torch.Tensor, target: torch.Tensor, eps: float = 1e-8
+) -> torch.Tensor:
     """Complex-valued MSE loss function"""
     if pred.shape != target.shape:
         raise RuntimeError(
             f"Dimention mismatch while computing MSE, {pred.shape} vs {target.shape}"
         )
     difference = pred - target
-    return torch.mean(
+    mse = torch.mean(
         (difference * difference.conj()).real, dim=-1, keepdim=False
     )  # Shape (batch,)
+    # return 10 * torch.log10(mse + eps)
+    return mse
 
 
 def si_snr_loss_complex(
