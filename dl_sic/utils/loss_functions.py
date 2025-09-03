@@ -43,4 +43,4 @@ def si_snr_loss_complex(
     )
     e_noise_norm = torch.sum(e_noise * e_noise.conj(), dim=-1, keepdim=False).real + eps
 
-    return 10 * torch.log10(s_target_norm / e_noise_norm)  # Shape (batch,)
+    return -10 * torch.log10(s_target_norm / e_noise_norm)  # Shape (batch,)

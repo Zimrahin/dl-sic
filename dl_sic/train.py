@@ -132,7 +132,7 @@ def train_ctdcr_net(
     #     0 * mse_loss_complex(pred, target) - si_snr_loss_complex(pred, target)
     # )  # Batch average
     # loss_function = mse_loss_complex
-    loss_function = -si_snr_loss_complex
+    loss_function = si_snr_loss_complex
 
     optimiser = torch.optim.Adam(
         model.parameters(), lr=learning_rate, weight_decay=weight_decay
