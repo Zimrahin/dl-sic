@@ -40,6 +40,9 @@ def train_epoch(
         # Forward pass
         output = model(mixture)
         loss: torch.Tensor = loss_function(output, target)
+        if torch.isnan(loss).any():
+            print("NaN detected in loss!")
+            break
         # Backward pass
         optimiser.zero_grad(set_to_none=True)
         loss.backward()
