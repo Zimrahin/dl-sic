@@ -6,7 +6,7 @@ import numpy as np
 
 from model.ctdcr_net import CTDCR_net
 from utils.dataset import LoadDataset
-from utils.loss_functions import mse_loss_complex
+from utils.loss_functions import si_snr_loss_complex
 
 
 def plot_test_signals(
@@ -52,10 +52,10 @@ def plot_test_signals(
     ax3.legend()
     ax3.grid(True)
 
-    max_all = np.max(np.abs(np.concatenate([mixture, target, output])))
-    ax1.set_ylim(-max_all - 0.1, max_all + 0.1)
-    ax2.set_ylim(-max_all - 0.1, max_all + 0.1)
-    ax3.set_ylim(-max_all - 0.1, max_all + 0.1)
+    # max_all = np.max(np.abs(np.concatenate([mixture, target, output])))
+    # ax1.set_ylim(-max_all - 0.1, max_all + 0.1)
+    # ax2.set_ylim(-max_all - 0.1, max_all + 0.1)
+    # ax3.set_ylim(-max_all - 0.1, max_all + 0.1)
 
     plt.tight_layout()
     plt.show()
@@ -149,8 +149,15 @@ if __name__ == "__main__":
     # Load checkpoint
     if os.path.exists(args.checkpoint_path):
         checkpoint = torch.load(args.checkpoint_path, map_location=device)
-        model.load_state_dict(checkpoint["model_state"])
-        print(f"Loaded checkpoint from epoch {checkpoint['epoch']}")
+        if "model_state" in checkpoint:
+            model.load_state_dict(checkpoint["model_state"])
+            model.load_state_dict(checkpoint["model_state"])
+            if "epoch" in checkpoint:
+                print(f"Loaded checkpoint from epoch {checkpoint['epoch']}")
+            else:
+                print(f"Loaded checkpoint weights")
+        else:
+            print(f"Loaded pretrained weights")
     else:
         raise FileNotFoundError(f"Checkpoint not found at {args.checkpoint_path}")
 
@@ -159,5 +166,5 @@ if __name__ == "__main__":
         model=model,
         dataset=dataset,
         device=device,
-        loss_function=mse_loss_complex,
+        loss_function=si_snr_loss_complex,
     )
