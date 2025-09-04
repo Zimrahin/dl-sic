@@ -19,15 +19,15 @@ from tqdm import tqdm
 @dataclass
 class SimulationConfig:
     sample_rate: float = 4e6
-    num_signals: int = 10000
-    signal_length: int = 4096  # Samples
-    ble_payload_size_range: tuple[int, int] = (70, 71)  # Max exclusive
-    ieee802154_payload_size_range: tuple[int, int] = (15, 16)  # Max exclusive
+    num_signals: int = 5000
+    signal_length: int = 3000  # Samples
+    ble_payload_size_range: tuple[int, int] = (4, 61)  # Max exclusive
+    ieee802154_payload_size_range: tuple[int, int] = (4, 16)  # Max exclusive
     # Channel/impairment ranges
-    amplitude_range: tuple[float, float] = (0.4, 1.0)
-    freq_offset_range: tuple[float, float] = (-20e3, 20e3)
+    amplitude_range: tuple[float, float] = (0.3, 1.0)
+    freq_offset_range: tuple[float, float] = (-10e3, 10e3)
     sample_delay_range: tuple[float, float] = (0, 1000)
-    snr_low_db_range: tuple[float, float] = (5.0, 20.0)  # SNR weaker signal
+    snr_low_db_range: tuple[float, float] = (8.0, 25.0)  # SNR weaker signal
     iq_imb_phase_range: tuple[float, float] = (0, 2)  # degrees
     iq_imb_mag_range: tuple[float, float] = (0, 0.3)  # dB
     rician_factor_range: tuple[float, float] = (0.0, 20.0)
@@ -152,16 +152,18 @@ class SignalDatasetGenerator:
         s2 = self._modulate_random_packet("802154", self.cfg.signal_length)
 
         # Amplitudes will be used to compute SNR to weaker signal
-        s1_target = self._delay_and_offsets(s1)
-        s2_target = self._delay_and_offsets(s2)
+        s1_out = self._delay_and_offsets(s1)
+        s2_out = self._delay_and_offsets(s2)
         amplitude1 = np.random.uniform(*self.cfg.amplitude_range)
         amplitude2 = np.random.uniform(*self.cfg.amplitude_range)
-        s1_out = amplitude1 * s1_target
-        s2_out = amplitude2 * s2_target
+        s1_out = amplitude1 * s1_out
+        s2_out = amplitude2 * s2_out
 
         # Apply fading channel + AWGN
         s1_out = self._apply_fading_channel(s1_out)
         s2_out = self._apply_fading_channel(s2_out)
+        s1_target = s1_out
+        s2_target = s2_out
         snr_db = np.random.uniform(*self.cfg.snr_low_db_range)  # SNR of weaker signal
         noise_power = min(amplitude1, amplitude2) ** 2 / (10 ** (snr_db / 10))
         mixture = add_white_gaussian_noise(
