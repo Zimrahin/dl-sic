@@ -43,16 +43,17 @@ class ComplexEncoder(nn.Module):
         if not torch.is_complex(x):
             raise TypeError("ComplexEncoder expects a complex tensor")
 
-        z_before_ln: torch.Tensor = self.conv_in(x)  # (batch, mid_channels, T)
-        z = z_before_ln
+        z: torch.Tensor = self.conv_in(x)  # (batch, mid_channels, T)
 
-        # Prepare for LayerNorm: permute to (batch, T, mid_channels)
+        # Normalise only in features (mid_channels) and not in time
+        # This is to be time-length agnostic.
+        # Layer Norm learns the affine transformation parameters with normalised shape
         z = z.permute(0, 2, 1)  # (batch, T, mid_channels)
-        z = self.layer_norm(z)
-        z = z.permute(0, 2, 1)  # (batch, mid_channels, T)
+        z_after_ln: torch.Tensor = self.layer_norm(z)
+        z_after_ln = z_after_ln.permute(0, 2, 1)  # (batch, mid_channels, T)
+        y = self.conv_out(z_after_ln)  # (batch, out_channels, T)
 
-        y = self.conv_out(z)  # (batch, out_channels, T)
-        return y, z_before_ln
+        return y, z
 
 
 def test_model():

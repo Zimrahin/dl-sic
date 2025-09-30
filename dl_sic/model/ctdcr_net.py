@@ -69,7 +69,6 @@ class CTDCR_net(nn.Module):
         # "Each complex decoder recovers a source signal through contrary convolution operations of CHE"
         # But Luo et al., 2019: Encoder doesn't include LayerNorm and the second Conv layer
         # Also, input comes from z ∈ MxT in ComplexEncoder.
-        # self.decoder = ComplexEncoder(in_channels=M, mid_channels=N, out_channels=1)
         self.decoder = ComplexDecoder(
             in_channels=M, out_channels=1, kernel_size=decoder_kernel_size
         )
