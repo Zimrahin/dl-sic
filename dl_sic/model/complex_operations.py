@@ -150,6 +150,14 @@ class ComplexLayerNorm(nn.Module):
         self.elementwise_affine = elementwise_affine
         self.complex_io = complex_input_output
 
+        # Handle complex dtypes
+        complex_to_real = {
+            torch.complex128: torch.float64,
+            torch.complex64: torch.float32,
+            torch.complex32: torch.float16,
+        }
+        dtype = complex_to_real.get(dtype, dtype)
+
         # Create parameters for Gamma and Beta for weight and bias
         if self.elementwise_affine:
             self.weight = nn.Parameter(torch.ones(2, 2, *normalized_shape, dtype=dtype))
