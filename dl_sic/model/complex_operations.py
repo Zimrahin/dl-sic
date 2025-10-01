@@ -134,6 +134,7 @@ class ComplexLayerNorm(nn.Module):
         eps: float = 1e-5,
         elementwise_affine: bool = True,
         complex_input_output: bool = True,
+        dtype: torch.dtype = None,
     ) -> None:
         super().__init__()
 
@@ -151,8 +152,8 @@ class ComplexLayerNorm(nn.Module):
 
         # Create parameters for Gamma and Beta for weight and bias
         if self.elementwise_affine:
-            self.weight = nn.Parameter(torch.ones(2, 2, *normalized_shape))
-            self.bias = nn.Parameter(torch.zeros(2, *normalized_shape))
+            self.weight = nn.Parameter(torch.ones(2, 2, *normalized_shape, dtype=dtype))
+            self.bias = nn.Parameter(torch.zeros(2, *normalized_shape, dtype=dtype))
         else:
             self.register_parameter("weight", None)
             self.register_parameter("bias", None)
@@ -164,7 +165,10 @@ class ComplexLayerNorm(nn.Module):
             return
         # Initialise Gamma and Beta (weight and bias)
         self.weight.data.copy_(
-            0.70710678118 * torch.eye(2).view(2, 2, *([1] * len(self.normalized_shape)))
+            0.70710678118
+            * torch.eye(2, dtype=self.weight.dtype).view(
+                2, 2, *([1] * len(self.normalized_shape))
+            )
         )
         torch.nn.init.zeros_(self.bias)
 
