@@ -133,6 +133,7 @@ class ComplexLayerNorm(nn.Module):
         *,
         eps: float = 1e-5,
         elementwise_affine: bool = True,
+        complex_input_output: bool = True,
     ) -> None:
         super().__init__()
 
@@ -146,6 +147,7 @@ class ComplexLayerNorm(nn.Module):
         self.normalized_shape = tuple(normalized_shape)
         self.eps = eps
         self.elementwise_affine = elementwise_affine
+        self.complex_io = complex_input_output
 
         # Create parameters for Gamma and Beta for weight and bias
         if self.elementwise_affine:
@@ -166,9 +168,7 @@ class ComplexLayerNorm(nn.Module):
         )
         torch.nn.init.zeros_(self.bias)
 
-    def forward(
-        self, input: torch.Tensor, *, complex_input_output: bool = True
-    ) -> torch.Tensor:
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
         # Sanity check to make sure the shapes match
         assert (
             self.normalized_shape == input.shape[-len(self.normalized_shape) :]
@@ -180,5 +180,5 @@ class ComplexLayerNorm(nn.Module):
             self.weight,
             self.bias,
             self.eps,
-            complex_input_output=complex_input_output,
+            complex_input_output=self.complex_io,
         )
