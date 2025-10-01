@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
-import complextorch
 
+# import complextorch
+from .complex_operations import ComplexLayerNorm
 from .activation_functions import ComplexPReLU
 
 
@@ -32,7 +33,7 @@ class ComplexDilatedConv(nn.Module):
         )
 
         self.prelu_in = ComplexPReLU(init=negative_slope)
-        self.layer_norm_in = complextorch.nn.LayerNorm(normalized_shape=mid_channels)
+        self.layer_norm_in = ComplexLayerNorm(normalized_shape=mid_channels)
 
         self.dconvs = nn.ModuleList(
             nn.Conv1d(
@@ -48,7 +49,7 @@ class ComplexDilatedConv(nn.Module):
         )
 
         self.prelu_out = ComplexPReLU(init=negative_slope)
-        self.layer_norm_out = complextorch.nn.LayerNorm(normalized_shape=mid_channels)
+        self.layer_norm_out = ComplexLayerNorm(normalized_shape=mid_channels)
 
         self.conv_out = nn.Conv1d(
             in_channels=mid_channels,

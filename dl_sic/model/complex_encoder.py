@@ -26,7 +26,7 @@ class ComplexEncoder(nn.Module):
             dtype=torch.complex64,
         )
 
-        self.layer_norm = complextorch.nn.LayerNorm(normalized_shape=mid_channels)
+        self.layer_norm = ComplexLayerNorm(normalized_shape=mid_channels)
 
         self.conv_out = nn.Conv1d(
             in_channels=mid_channels,
