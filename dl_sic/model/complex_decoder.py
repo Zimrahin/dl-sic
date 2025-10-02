@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from .utils import ComplexConv1d
+from .complex_operations import ComplexConv1d
 
 
 class ComplexDecoder(nn.Module):

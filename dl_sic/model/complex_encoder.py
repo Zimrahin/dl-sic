@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from .utils import ComplexLayerNorm, ComplexConv1d
+from .complex_operations import ComplexLayerNorm, ComplexConv1d
 
 
 class ComplexEncoder(nn.Module):
