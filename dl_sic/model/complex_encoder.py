@@ -19,7 +19,6 @@ class ComplexEncoder(nn.Module):
     ) -> None:
         super().__init__()
 
-        self.dtype = dtype
         self.dtype_is_complex = dtype in (
             torch.complex32,
             torch.complex64,

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from .utils import ComplexConv1d
 
 
 class ComplexDecoder(nn.Module):
@@ -17,40 +18,59 @@ class ComplexDecoder(nn.Module):
         dtype: type = torch.complex64,
     ) -> None:
         super().__init__()
-        padding = (kernel_size - 1) // 2
 
-        self.conv_in = nn.ConvTranspose1d(
+        self.dtype_is_complex = dtype in (
+            torch.complex32,
+            torch.complex64,
+            torch.complex128,
+        )
+
+        self.conv_in = ComplexConv1d(
             in_channels=in_channels,
             out_channels=out_channels,
             kernel_size=kernel_size,
-            padding=padding,
+            padding="same",
             dtype=dtype,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Input shape: (batch, in_channels, T) complex tensor
+        Input shape:
+        - For complex: (batch, in_channels, T) complex tensor
+        - For real: (2, batch, in_channels, T) real tensor (first dim: 0=real, 1=imag)
         """
-        if not torch.is_complex(x):
-            raise TypeError("ComplexDecoder expects a complex tensor")
 
-        return self.conv_in(x)  # (batch, 1, T)
+        return self.conv_in(x)  # ((2), batch, 1, T)
 
 
 def test_model():
     in_channels = 128
     batch_size = 4
     signal_length = 2048  # T
-    dtype = torch.complex64
-    model = ComplexDecoder(in_channels, dtype=dtype)
+    dtypes = [torch.complex64, torch.float32]
 
-    print(f"Total Parameters: {sum(p.numel() for p in model.parameters()):,}")
+    for dtype in dtypes:
+        print(f"Testing dtype: {dtype}")
 
-    input = torch.rand((batch_size, in_channels, signal_length), dtype=dtype)
-    output = model(input)  # Forward pass
+        model = ComplexDecoder(in_channels, dtype=dtype)
 
-    print("Input shape:", input.shape)
-    print("Output shape:", output.shape)
+        total_params = sum(p.numel() for p in model.parameters())
+        total_memory = sum(p.element_size() * p.nelement() for p in model.parameters())
+
+        print(f"Total Parameters: {total_params:,}")
+        print(f"Total Size: {total_memory:,} bytes")
+
+        if dtype in (torch.complex32, torch.complex64, torch.complex128):
+            # Complex input: (batch, in_channels, T)
+            input = torch.rand((batch_size, in_channels, signal_length), dtype=dtype)
+        else:
+            # Real input: (2, batch, in_channels, T)
+            input = torch.rand((2, batch_size, in_channels, signal_length), dtype=dtype)
+        output = model(input)  # Forward pass
+
+        print("Input shape:", input.shape)
+        print("Output shape:", output.shape)
+        print("")
 
 
 if __name__ == "__main__":
