@@ -150,7 +150,11 @@ def test_model():
 
         model = ComplexEncoder(in_channels, dtype=dtype)
 
-        print(f"Total Parameters: {sum(p.numel() for p in model.parameters()):,}")
+        total_params = sum(p.numel() for p in model.parameters())
+        total_memory = sum(p.element_size() * p.nelement() for p in model.parameters())
+
+        print(f"Total Parameters: {total_params:,}")
+        print(f"Total Size: {total_memory:,} bytes")
 
         if dtype in (torch.complex32, torch.complex64, torch.complex128):
             # Complex input: (batch, in_channels, T)
