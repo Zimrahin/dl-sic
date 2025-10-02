@@ -97,7 +97,7 @@ class ComplexConv1d(nn.Module):
         if torch.is_complex(x):
             if x.dim() != 3:
                 raise ValueError(
-                    f"{self.__class__.__name__}: Input must be complex of shape (batch, in_channels, T), got shape {x.shape}. "
+                    f"{self.__class__.__name__}: Complex input must be 3D (batch, in_channels, T), got shape {x.shape}. "
                 )
             return self.conv(x)
         else:
