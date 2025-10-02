@@ -16,6 +16,91 @@ def complex_convolution(
     return torch.stack([z_real, z_imag], dim=0)
 
 
+class ComplexConv1d(nn.Module):
+    """
+    Complex 1D Convolution that supports both native complex operations
+    and real dtype with separate real/imaginary convolutions.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        padding: str = "same",
+        dtype: torch.dtype = torch.complex64,
+    ):
+        super().__init__()
+
+        self.dtype = dtype
+        self.dtype_is_complex = dtype in (
+            torch.complex32,
+            torch.complex64,
+            torch.complex128,
+        )
+
+        if self.dtype_is_complex:
+            # Use native PyTorch complex convolution
+            self.conv = nn.Conv1d(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=kernel_size,
+                padding=padding,
+                dtype=dtype,
+            )
+        else:
+            # Use separate real and imaginary convolutions
+            self.conv_real = nn.Conv1d(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=kernel_size,
+                padding=padding,
+                dtype=dtype,
+            )
+            self.conv_imag = nn.Conv1d(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=kernel_size,
+                padding=padding,
+                dtype=dtype,
+            )
+
+    def _validate_input_type(self, x: torch.Tensor) -> None:
+        input_is_complex = torch.is_complex(x)
+        if self.dtype_is_complex and not input_is_complex:
+            raise ValueError(
+                f"{self.__class__.__name__}: Model initialised with complex dtype {self.dtype}, "
+                f"but received real input tensor. \nExpected complex input shape: (batch, in_channels, T)."
+            )
+
+        if not self.dtype_is_complex and input_is_complex:
+            raise ValueError(
+                f"{self.__class__.__name__}: Model initialised with real dtype {self.dtype}, "
+                f"but received complex input tensor. \nExpected real input shape: (2, batch, in_channels, T)."
+            )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Input shape:
+        - For complex: (batch, in_channels, T) complex tensor
+        - For real: (2, batch, in_channels, T) real tensor (first dim: 0=real, 1=imag)
+        """
+        self._validate_input_type(x)
+        if torch.is_complex(x):
+            if x.dim() != 3:
+                raise ValueError(
+                    f"{self.__class__.__name__}: Input must be complex of shape (batch, in_channels, T), got shape {x.shape}. "
+                )
+            return self.conv(x)
+        else:
+            if x.dim() != 4 or x.shape[0] != 2:
+                raise ValueError(
+                    f"{self.__class__.__name__}: Real input must be 4D (2, batch, in_channels, T), got shape {x.shape}. "
+                )
+            # For real dtype, apply complex convolution using separate real/imag parts
+            return complex_convolution(x[0], x[1], self.conv_real, self.conv_imag)
+
+
 def _inv_sqrt_2x2(
     a11: torch.Tensor,
     a12: torch.Tensor,

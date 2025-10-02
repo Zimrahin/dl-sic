@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from .complex_operations import ComplexLayerNorm, complex_convolution
+from .utils import ComplexLayerNorm, ComplexConv1d
 
 
 class ComplexEncoder(nn.Module):
@@ -26,73 +26,27 @@ class ComplexEncoder(nn.Module):
             torch.complex128,
         )
 
-        # Directly use PyTorch native complex convolutions and expect complex inputs
-        if self.dtype_is_complex:
-            self.conv_in = nn.Conv1d(
-                in_channels=in_channels,
-                out_channels=mid_channels,
-                kernel_size=kernel_size,
-                padding="same",
-                dtype=dtype,
-            )
-            self.layer_norm = ComplexLayerNorm(
-                normalized_shape=mid_channels, complex_input_output=True, dtype=dtype
-            )
-            self.conv_out = nn.Conv1d(
-                in_channels=mid_channels,
-                out_channels=out_channels,
-                kernel_size=kernel_size,
-                padding="same",
-                dtype=dtype,
-            )
-        else:  # Use PyTorch real types, while keeping the complex arithmetic
-            self.conv_in_real = nn.Conv1d(
-                in_channels=in_channels,
-                out_channels=mid_channels,
-                kernel_size=kernel_size,
-                padding="same",
-                dtype=dtype,
-            )
-            self.conv_in_imag = nn.Conv1d(
-                in_channels=in_channels,
-                out_channels=mid_channels,
-                kernel_size=kernel_size,
-                padding="same",
-                dtype=dtype,
-            )
+        self.conv_in = ComplexConv1d(
+            in_channels=in_channels,
+            out_channels=mid_channels,
+            kernel_size=kernel_size,
+            padding="same",
+            dtype=dtype,
+        )
 
-            self.layer_norm = ComplexLayerNorm(
-                normalized_shape=mid_channels, complex_input_output=False, dtype=dtype
-            )
+        self.layer_norm = ComplexLayerNorm(
+            normalized_shape=mid_channels,
+            complex_input_output=self.dtype_is_complex,
+            dtype=dtype,
+        )
 
-            self.conv_out_real = nn.Conv1d(
-                in_channels=mid_channels,
-                out_channels=out_channels,
-                kernel_size=kernel_size,
-                padding="same",
-                dtype=dtype,
-            )
-            self.conv_out_imag = nn.Conv1d(
-                in_channels=mid_channels,
-                out_channels=out_channels,
-                kernel_size=kernel_size,
-                padding="same",
-                dtype=dtype,
-            )
-
-    def _validate_input_type(self, x: torch.Tensor) -> None:
-        input_is_complex = torch.is_complex(x)
-        if self.dtype_is_complex and not input_is_complex:
-            raise ValueError(
-                f"{self.__class__.__name__}: Model initialised with complex dtype {self.dtype}, "
-                f"but received real input tensor. \nExpected complex input shape: (batch, in_channels, T)."
-            )
-
-        if not self.dtype_is_complex and input_is_complex:
-            raise ValueError(
-                f"{self.__class__.__name__}: Model initialised with real dtype {self.dtype}, "
-                f"but received complex input tensor. \nExpected real input shape: (2, batch, in_channels, T)."
-            )
+        self.conv_out = ComplexConv1d(
+            in_channels=mid_channels,
+            out_channels=out_channels,
+            kernel_size=kernel_size,
+            padding="same",
+            dtype=dtype,
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -100,41 +54,19 @@ class ComplexEncoder(nn.Module):
         - For complex: (batch, in_channels, T) complex tensor
         - For real: (2, batch, in_channels, T) real tensor (first dim: 0=real, 1=imag)
         """
-        self._validate_input_type(x)
-        if torch.is_complex(x):
-            if x.dim() != 3:
-                raise ValueError(
-                    f"{self.__class__.__name__}: Complex input must be 3D (batch, in_channels, T), got shape {x.shape}. "
-                )
 
-            z: torch.Tensor = self.conv_in(x)  # (batch, mid_channels, T)
+        # For complex dtype, input shape is (batch, in_channels, T)
+        # For real dtype, input shape is (2, batch, in_channels, T)
+        z = self.conv_in(x)  # ((2), batch, mid_channels, T)
 
-            # Normalise only in features (mid_channels) and not in time
-            # This is to be time-length agnostic.
-            # Layer Norm learns the affine transformation parameters with normalised shape
-            z_ln = z.permute(0, 2, 1)  # (batch, T, mid_channels)
-            z_ln = self.layer_norm(z_ln)
-            z_ln = z_ln.permute(0, 2, 1)  # (batch, mid_channels, T)
-            y = self.conv_out(z_ln)  # (batch, out_channels, T)
-        else:
-            if x.dim() != 4 or x.shape[0] != 2:
-                raise ValueError(
-                    f"{self.__class__.__name__}: Real input must be 4D (2, batch, in_channels, T), got shape {x.shape}. "
-                )
+        # Normalise only in features (mid_channels) and not in time
+        # This is to be time-length agnostic.
+        # Layer Norm learns the affine transformation parameters with normalised shape
+        z_ln = z.transpose(-1, -2)  # ((2), batch, T, mid_channels)
+        z_ln = self.layer_norm(z_ln)
+        z_ln = z_ln.transpose(-1, -2)  # ((2), batch, mid_channels, T)
 
-            # For real dtype, input shape is (2, batch, in_channels, T)
-            z = complex_convolution(
-                x[0], x[1], self.conv_in_real, self.conv_in_imag
-            )  # (batch, mid_channels, T)
-
-            z_ln = z.permute(0, 1, 3, 2)  # (2, batch, T, mid_channels)
-            z_ln = self.layer_norm(z_ln)
-            z_ln = z_ln.permute(0, 1, 3, 2)  # (2, batch, mid_channels, T)
-
-            # Output convolution using complex convolution
-            y = complex_convolution(
-                z_ln[0], z_ln[1], self.conv_out_real, self.conv_out_imag
-            )  # (2, batch, out_channels, T)
+        y = self.conv_out(z_ln)  # ((2), batch, out_channels, T)
 
         return y, z
 
