@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from .complex_operations import ComplexLayerNorm
+from .complex_operations import ComplexLayerNorm, ComplexConv1d
 from .activation_functions import ComplexPReLU
 
 
@@ -20,13 +20,20 @@ class ComplexDilatedConv(nn.Module):
         dilation: int = 1,  # 2**(V-1) for each added CDC
         negative_slope: float = 0.01,  # For PReLU (Leaky ReLU with learnt slope)
         number_dconvs: int = 2,  # Number of dilated conv layers
+        dtype: torch.dtype = torch.complex64,
     ) -> None:
         super().__init__()
 
-        self.conv_in = nn.Conv1d(
+        self.dtype_is_complex = dtype in (
+            torch.complex32,
+            torch.complex64,
+            torch.complex128,
+        )
+
+        self.conv_in = ComplexConv1d(
             in_channels=in_channels,
             out_channels=mid_channels,  # Expand channels to mid_channels to match dilated conv size
-            kernel_size=1,  # Assume pointwise 1x1-conv (based on Conv-TasNet, Luo et al., 2019)
+            kernel_size=1,  # Pointwise 1x1-conv (based on Conv-TasNet, Luo et al., 2019)
             padding="same",
             dtype=torch.complex64,
         )
@@ -35,7 +42,7 @@ class ComplexDilatedConv(nn.Module):
         self.layer_norm_in = ComplexLayerNorm(normalized_shape=mid_channels)
 
         self.dconvs = nn.ModuleList(
-            nn.Conv1d(
+            ComplexConv1d(
                 in_channels=mid_channels,
                 out_channels=mid_channels,
                 kernel_size=kernel_size,
@@ -50,7 +57,7 @@ class ComplexDilatedConv(nn.Module):
         self.prelu_out = ComplexPReLU(init=negative_slope)
         self.layer_norm_out = ComplexLayerNorm(normalized_shape=mid_channels)
 
-        self.conv_out = nn.Conv1d(
+        self.conv_out = ComplexConv1d(
             in_channels=mid_channels,
             out_channels=in_channels,  # Back to input size
             kernel_size=1,  # Assume pointwise 1x1-conv (based on Conv-TasNet, Luo et al., 2019)

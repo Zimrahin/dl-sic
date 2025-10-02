@@ -28,6 +28,8 @@ class ComplexConv1d(nn.Module):
         out_channels: int,
         kernel_size: int,
         padding: str = "same",
+        dilation: int = 1,
+        groups: int = 1,
         dtype: torch.dtype = torch.complex64,
     ):
         super().__init__()
@@ -46,6 +48,8 @@ class ComplexConv1d(nn.Module):
                 out_channels=out_channels,
                 kernel_size=kernel_size,
                 padding=padding,
+                dilation=dilation,
+                groups=groups,
                 dtype=dtype,
             )
         else:
@@ -55,6 +59,8 @@ class ComplexConv1d(nn.Module):
                 out_channels=out_channels,
                 kernel_size=kernel_size,
                 padding=padding,
+                dilation=dilation,
+                groups=groups,
                 dtype=dtype,
             )
             self.conv_imag = nn.Conv1d(
@@ -62,6 +68,8 @@ class ComplexConv1d(nn.Module):
                 out_channels=out_channels,
                 kernel_size=kernel_size,
                 padding=padding,
+                dilation=dilation,
+                groups=groups,
                 dtype=dtype,
             )
 
