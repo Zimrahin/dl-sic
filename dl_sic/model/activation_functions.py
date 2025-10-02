@@ -12,6 +12,14 @@ class ComplexPReLU(nn.Module):
         self, num_parameters: int = 1, init: float = 0.01, device=None, dtype=None
     ) -> None:
         super().__init__()
+        # Handle complex dtypes
+        complex_to_real = {
+            torch.complex128: torch.float64,
+            torch.complex64: torch.float32,
+            torch.complex32: torch.float16,
+        }
+        dtype = complex_to_real.get(dtype, dtype)
+
         self.act = nn.PReLU(num_parameters, init, device, dtype)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

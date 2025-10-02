@@ -38,7 +38,7 @@ class ComplexDilatedConv(nn.Module):
             dtype=dtype,
         )
 
-        self.prelu_in = ComplexPReLU(init=negative_slope)
+        self.prelu_in = ComplexPReLU(init=negative_slope, dtype=dtype)
         self.layer_norm_in = ComplexLayerNorm(
             normalized_shape=mid_channels,
             complex_input_output=self.dtype_is_complex,
@@ -58,7 +58,7 @@ class ComplexDilatedConv(nn.Module):
             for _ in range(number_dconvs)
         )
 
-        self.prelu_out = ComplexPReLU(init=negative_slope)
+        self.prelu_out = ComplexPReLU(init=negative_slope, dtype=dtype)
         self.layer_norm_out = ComplexLayerNorm(
             normalized_shape=mid_channels,
             complex_input_output=self.dtype_is_complex,
