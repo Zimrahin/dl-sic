@@ -7,12 +7,13 @@ def complex_convolution(
     x_imag: torch.Tensor,
     conv_real: nn.Module,
     conv_imag: nn.Module,
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> torch.Tensor:
     """Complex convolution real-valued tensors"""
 
     z_real = conv_real(x_real) - conv_imag(x_imag)
     z_imag = conv_real(x_imag) + conv_imag(x_real)
-    return z_real, z_imag
+
+    return torch.stack([z_real, z_imag], dim=0)
 
 
 def _inv_sqrt_2x2(
@@ -24,7 +25,6 @@ def _inv_sqrt_2x2(
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Inverse Squareroot of 2x2 Matrix adapted from complextorch library
-    https://github.com/josiahwsmith10/complextorch
     Following: https://en.wikipedia.org/wiki/Square_root_of_a_2_by_2_matrix
     """
     if symmetric:
@@ -54,7 +54,6 @@ def _whiten2x2_layer_norm(
 ) -> torch.Tensor:  # Returns real(!) stacked tensor
     """
     Layer Norm Whitening (centring and scaling) adapted from complextorch library
-    https://github.com/josiahwsmith10/complextorch
     """
     assert x.dim() >= 3  # Assume tensor has shape (2, B, F, ...)
 
@@ -81,7 +80,7 @@ def _whiten2x2_layer_norm(
 
 
 def complex_layer_norm(
-    x: torch.Tensor,  # Complex(!) input tensor of shape (batch, features/channels, ...)
+    x: torch.Tensor,  # Complex (B, F, ...) or Real (2, B, F, ...) input tensor
     normalized_shape: list[int],  # shape (features/channels, ...)
     weight: torch.Tensor | None = None,  # Real(!) tensor of shape (2, 2, features)
     bias: torch.Tensor | None = None,  # Real(!) tensor of shape (2, features)
@@ -91,7 +90,6 @@ def complex_layer_norm(
 ) -> torch.Tensor:
     """
     Complex-Valued Layer Normalization adapted from complextorch library
-    https://github.com/josiahwsmith10/complextorch.
     Extending the work of (Trabelsi et al., 2018) for each channel across a batch.
     """
     if complex_input_output:
@@ -120,7 +118,6 @@ def complex_layer_norm(
 class ComplexLayerNorm(nn.Module):
     """
     Complex-Valued Layer Normalization from complextorch library
-    https://github.com/josiahwsmith10/complextorch.
 
     Uses whitening transformation to ensure standard normal complex distribution
     with equal variance in both real and imaginary components.
