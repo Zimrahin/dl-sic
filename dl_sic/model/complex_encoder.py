@@ -19,8 +19,15 @@ class ComplexEncoder(nn.Module):
     ) -> None:
         super().__init__()
 
+        self.dtype = dtype
+        self.dtype_is_complex = dtype in (
+            torch.complex32,
+            torch.complex64,
+            torch.complex128,
+        )
+
         # Directly use PyTorch native complex convolutions and expect complex inputs
-        if dtype in (torch.complex32, torch.complex64, torch.complex128):
+        if self.dtype_is_complex:
             self.conv_in = nn.Conv1d(
                 in_channels=in_channels,
                 out_channels=mid_channels,
@@ -73,12 +80,27 @@ class ComplexEncoder(nn.Module):
                 dtype=dtype,
             )
 
+    def _validate_input_type(self, x: torch.Tensor) -> None:
+        input_is_complex = torch.is_complex(x)
+        if self.dtype_is_complex and not input_is_complex:
+            raise ValueError(
+                f"{self.__class__.__name__}: Model initialised with complex dtype {self.dtype}, "
+                f"but received real input tensor. \nExpected complex input shape: (batch, in_channels, T)."
+            )
+
+        if not self.dtype_is_complex and input_is_complex:
+            raise ValueError(
+                f"{self.__class__.__name__}: Model initialised with real dtype {self.dtype}, "
+                f"but received complex input tensor. \nExpected real input shape: (2, batch, in_channels, T)."
+            )
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Input shape:
         - For complex: (batch, in_channels, T) complex tensor
         - For real: (2, batch, in_channels, T) real tensor (first dim: 0=real, 1=imag)
         """
+        self._validate_input_type(x)
         if torch.is_complex(x):
             if x.dim() != 3:
                 raise ValueError(
