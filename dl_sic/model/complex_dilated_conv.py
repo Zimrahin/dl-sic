@@ -35,11 +35,15 @@ class ComplexDilatedConv(nn.Module):
             out_channels=mid_channels,  # Expand channels to mid_channels to match dilated conv size
             kernel_size=1,  # Pointwise 1x1-conv (based on Conv-TasNet, Luo et al., 2019)
             padding="same",
-            dtype=torch.complex64,
+            dtype=dtype,
         )
 
         self.prelu_in = ComplexPReLU(init=negative_slope)
-        self.layer_norm_in = ComplexLayerNorm(normalized_shape=mid_channels)
+        self.layer_norm_in = ComplexLayerNorm(
+            normalized_shape=mid_channels,
+            complex_input_output=self.dtype_is_complex,
+            dtype=dtype,
+        )
 
         self.dconvs = nn.ModuleList(
             ComplexConv1d(
@@ -49,44 +53,47 @@ class ComplexDilatedConv(nn.Module):
                 padding="same",
                 dilation=dilation,
                 groups=mid_channels,  # Depthwise convolution (Conv-TasNet, Luo et al., 2019))
-                dtype=torch.complex64,
+                dtype=dtype,
             )
             for _ in range(number_dconvs)
         )
 
         self.prelu_out = ComplexPReLU(init=negative_slope)
-        self.layer_norm_out = ComplexLayerNorm(normalized_shape=mid_channels)
+        self.layer_norm_out = ComplexLayerNorm(
+            normalized_shape=mid_channels,
+            complex_input_output=self.dtype_is_complex,
+            dtype=dtype,
+        )
 
         self.conv_out = ComplexConv1d(
             in_channels=mid_channels,
             out_channels=in_channels,  # Back to input size
-            kernel_size=1,  # Assume pointwise 1x1-conv (based on Conv-TasNet, Luo et al., 2019)
+            kernel_size=1,  # Pointwise 1x1-conv (based on Conv-TasNet, Luo et al., 2019)
             padding="same",
-            dtype=torch.complex64,
+            dtype=dtype,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Input shape: (batch, in_channels, T) complex tensor
+        Input shape:
+        - For complex: (batch, in_channels, T) complex tensor
+        - For real: (2, batch, in_channels, T) real tensor (first dim: 0=real, 1=imag)
         """
-        if not torch.is_complex(x):
-            raise TypeError("ComplexDilatedConv expects a complex tensor.")
-
         # Bottleneck, from in_channels to mid_channels
         y = self.conv_in(x)  # (batch, mid_channels, T)
         y = self.prelu_in(y)  # (batch, mid_channels, T)
-        y = y.permute(0, 2, 1)  # (batch, T, mid_channels)
+        y = y.transpose(-1, -2)  # (batch, T, mid_channels)
         y = self.layer_norm_in(y)
-        y = y.permute(0, 2, 1)  # (batch, mid_channels, T)
+        y = y.transpose(-1, -2)  # (batch, mid_channels, T)
 
         for dconv in self.dconvs:
             y = dconv(y)
 
         # Bottleneck, from mid_channels to in_channels
         y = self.prelu_out(y)  # (batch, mid_channels, T)
-        y = y.permute(0, 2, 1)  # (batch, T, mid_channels)
+        y = y.transpose(-1, -2)  # (batch, T, mid_channels)
         y = self.layer_norm_out(y)
-        y = y.permute(0, 2, 1)  # (batch, mid_channels, T)
+        y = y.transpose(-1, -2)  # (batch, mid_channels, T)
         y = self.conv_out(y)  # (batch, in_channels, T)
 
         return y + x  # Skip connection
@@ -96,15 +103,30 @@ def test_model():
     in_channels = 32
     batch_size = 4
     signal_length = 2048  # T
-    model = ComplexDilatedConv(in_channels)
+    dtypes = [torch.complex64, torch.float32]
 
-    print(f"Total Parameters: {sum(p.numel() for p in model.parameters()):,}")
+    for dtype in dtypes:
+        print(f"Testing dtype: {dtype}")
 
-    input = torch.rand((batch_size, in_channels, signal_length), dtype=torch.complex64)
-    output: torch.Tensor = model(input)  # Forward pass
+        model = ComplexDilatedConv(in_channels, dtype=dtype)
 
-    print("Input shape:", input.shape)
-    print("Output shape:", output.shape)
+        total_params = sum(p.numel() for p in model.parameters())
+        total_memory = sum(p.element_size() * p.nelement() for p in model.parameters())
+
+        print(f"Total Parameters: {total_params:,}")
+        print(f"Total Size: {total_memory:,} bytes")
+
+        if dtype in (torch.complex32, torch.complex64, torch.complex128):
+            # Complex input: (batch, in_channels, T)
+            input = torch.rand((batch_size, in_channels, signal_length), dtype=dtype)
+        else:
+            # Real input: (2, batch, in_channels, T)
+            input = torch.rand((2, batch_size, in_channels, signal_length), dtype=dtype)
+        output = model(input)  # Forward pass
+
+        print("Input shape:", input.shape)
+        print("Output shape:", output.shape)
+        print("")
 
 
 if __name__ == "__main__":
