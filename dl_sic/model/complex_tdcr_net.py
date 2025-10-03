@@ -91,15 +91,22 @@ class ComplexTDCRnet(nn.Module):
         Input shape handling for both complex and real dtypes:
         - For complex: (batch, T) or (batch, 1, T) complex tensor
         - For real: (2, batch, T) or (2, batch, 1, T) real tensor
+        Output: Always complex tensor in same format as input
         """
+        original_dim = x.dim()
+        input_is_complex = torch.is_complex(x)
+
         # Input shape handling
         original_dim = x.dim()
-        if self.dtype_is_complex:
-            # Complex input: (batch, T) -> (batch, 1, T)
-            if x.dim() == 2:
+        if input_is_complex:
+            if x.dim() == 2:  # (batch, T) -> (batch, 1, T)
                 x = x.unsqueeze(1)  # (batch, 1, T)
             if x.size(1) != 1:
                 raise ValueError(f"Expected 1 input channel, got {x.size(1)} channels")
+
+            # If network uses real parameters but got complex input, convert to real representation
+            if not self.dtype_is_complex:
+                x = torch.stack([x.real, x.imag], dim=0)  # (2, batch, 1, T)
         else:
             # Real input: (2, batch, T) -> (2, batch, 1, T)
             if x.dim() == 3:
@@ -130,8 +137,12 @@ class ComplexTDCRnet(nn.Module):
             if original_dim == 2:
                 s = s.squeeze(1)  # (batch, T)
         else:
-            if original_dim == 3:
+            if original_dim == 2:
                 s = s.squeeze(2)  # (2, batch, T)
+
+        # Always return complex for simplicity
+        if not torch.is_complex(s):
+            s = torch.complex(s[0], s[1])
 
         return s
 
@@ -157,26 +168,44 @@ def test_model():
             print("Testing 3D complex input")
             input = torch.rand((batch_size, 1, signal_length), dtype=dtype)
             output = model(input)
-            print("Input shape:", input.shape)
-            print("Output shape:", output.shape)
+            print(f"Input shape: {input.shape}, dtype: {input.dtype}")
+            print(f"Output shape: {output.shape}, dtype: {output.dtype}")
 
             print("Testing 2D complex input")
             input = torch.rand((batch_size, signal_length), dtype=dtype)
             output = model(input)
-            print("Input shape:", input.shape)
-            print("Output shape:", output.shape)
+            print(f"Input shape: {input.shape}, dtype: {input.dtype}")
+            print(f"Output shape: {output.shape}, dtype: {output.dtype}")
         else:
+            complex_dtype_map = {
+                torch.float32: torch.complex64,
+                torch.float16: torch.complex32,
+                torch.float64: torch.complex128,
+            }
+            complex_dtype = complex_dtype_map.get(dtype, torch.complex64)
+            print("Testing 3D complex input")
+            input = torch.rand((batch_size, 1, signal_length), dtype=complex_dtype)
+            output = model(input)
+            print(f"Input shape: {input.shape}, dtype: {input.dtype}")
+            print(f"Output shape: {output.shape}, dtype: {output.dtype}")
+
+            print("Testing 2D complex input")
+            input = torch.rand((batch_size, signal_length), dtype=complex_dtype)
+            output = model(input)
+            print(f"Input shape: {input.shape}, dtype: {input.dtype}")
+            print(f"Output shape: {output.shape}, dtype: {output.dtype}")
+
             print("Testing 4D real input")
             input = torch.rand((2, batch_size, 1, signal_length), dtype=dtype)
             output = model(input)
-            print("Input shape:", input.shape)
-            print("Output shape:", output.shape)
+            print(f"Input shape: {input.shape}, dtype: {input.dtype}")
+            print(f"Output shape: {output.shape}, dtype: {output.dtype}")
 
             print("Testing 3D real input")
             input = torch.rand((2, batch_size, signal_length), dtype=dtype)
             output = model(input)
-            print("Input shape:", input.shape)
-            print("Output shape:", output.shape)
+            print(f"Input shape: {input.shape}, dtype: {input.dtype}")
+            print(f"Output shape: {output.shape}, dtype: {output.dtype}")
 
         print("")
 
