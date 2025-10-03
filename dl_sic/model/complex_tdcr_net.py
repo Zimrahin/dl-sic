@@ -17,13 +17,12 @@ class ComplexTDCRnet(nn.Module):
     def __init__(
         self,
         M: int = 128,  # Middle channels in the complex encoder
-        N: int = 32,  # Out channels in the complex encoder
+        N: int = 32,  # Out channels of encoder and input to LSTM = H
         U: int = 128,  # Middle channels in complex dilated convolution
-        H: int = 32,  # Hidden size in complex LSTM
         V: int = 8,  # Dilated convolutions on each side of the LSTM
         *,
-        encoder_kernel_size: int = 3,  # Changed from 2 to 3 (odd, keep same size)
-        decoder_kernel_size: int = 3,  # Changed from 2 to 3 (odd, keep same size)
+        encoder_kernel_size: int = 3,
+        decoder_kernel_size: int = 3,
         dtype=torch.complex64,
     ) -> None:
         super().__init__()
@@ -54,7 +53,7 @@ class ComplexTDCRnet(nn.Module):
         )
         self.lstm = ComplexLSTM(
             input_size=N,
-            hidden_size=H,
+            hidden_size=N,
             dtype=dtype,
         )
         self.cdc_right = nn.ModuleList(
@@ -145,7 +144,7 @@ def test_model():
     for dtype in dtypes:
         print(f"Testing dtype: {dtype}")
 
-        model = ComplexTDCRnet(dtype=dtype)
+        model = ComplexTDCRnet(dtype=dtype, N=32)
 
         total_params = sum(p.numel() for p in model.parameters())
         total_memory = sum(p.element_size() * p.nelement() for p in model.parameters())
