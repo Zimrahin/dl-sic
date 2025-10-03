@@ -6,6 +6,7 @@ from .complex_dilated_conv import ComplexDilatedConv
 from .complex_lstm import ComplexLSTM
 from .complex_decoder import ComplexDecoder
 from .activation_functions import ComplexPReLU, ComplexSigmoid
+from .complex_operations import ComplexConv1d
 
 
 class CTDCR_net(nn.Module):
@@ -23,13 +24,23 @@ class CTDCR_net(nn.Module):
         *,
         encoder_kernel_size: int = 3,  # Changed from 2 to 3 (odd, keep same size)
         decoder_kernel_size: int = 3,  # Changed from 2 to 3 (odd, keep same size)
+        dtype=torch.complex64,
     ) -> None:
         super().__init__()
+
+        self.dtype = dtype
+        self.dtype_is_complex = dtype in (
+            torch.complex32,
+            torch.complex64,
+            torch.complex128,
+        )
+
         self.encoder = ComplexEncoder(
             in_channels=1,
             mid_channels=M,
             out_channels=N,
             kernel_size=encoder_kernel_size,
+            dtype=dtype,
         )
 
         self.cdc_left = nn.ModuleList(
@@ -37,53 +48,65 @@ class CTDCR_net(nn.Module):
                 in_channels=N,
                 mid_channels=U,
                 dilation=2**v,
+                dtype=dtype,
             )
             for v in range(V)
         )
         self.lstm = ComplexLSTM(
             input_size=N,
             hidden_size=H,
+            dtype=dtype,
         )
         self.cdc_right = nn.ModuleList(
             ComplexDilatedConv(
                 in_channels=N,
                 mid_channels=U,
                 dilation=2**v,
+                dtype=dtype,
             )
             for v in range(V)
         )
 
         # Based on Conv-TasNet, Luo et al., 2019, Fig. 1.B
-        self.prelu_out = ComplexPReLU()
-        self.conv_out = nn.Conv1d(
+        self.prelu_out = ComplexPReLU(dtype=dtype)
+        self.conv_out = ComplexConv1d(
             in_channels=N,
             out_channels=M,  # Expand channels to mid_channels to match z
-            kernel_size=1,  # Assume pointwise 1x1-conv (based on Conv-TasNet, Luo et al., 2019)
+            kernel_size=1,  # Pointwise 1x1-conv (based on Conv-TasNet, Luo et al., 2019)
             padding=0,
-            dtype=torch.complex64,
+            dtype=dtype,
         )
 
         self.sigmoid_out = ComplexSigmoid()
 
-        # Guo et al., 2024:
-        # "Each complex decoder recovers a source signal through contrary convolution operations of CHE"
-        # But Luo et al., 2019: Encoder doesn't include LayerNorm and the second Conv layer
-        # Also, input comes from z ∈ MxT in ComplexEncoder.
+        # From ConvTasNet (Luo et al., 2019):
         self.decoder = ComplexDecoder(
-            in_channels=M, out_channels=1, kernel_size=decoder_kernel_size
+            in_channels=M,
+            out_channels=1,
+            kernel_size=decoder_kernel_size,
+            dtype=dtype,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Input shape: (batch, T) or (batch, 1, T) complex tensor
-        Output shape: same as input shape
+        Input shape handling for both complex and real dtypes:
+        - For complex: (batch, T) or (batch, 1, T) complex tensor
+        - For real: (2, batch, T) or (2, batch, 1, T) real tensor
         """
         # Input shape handling
         original_dim = x.dim()
-        if x.dim() == 2:
-            x = x.unsqueeze(1)  # (batch, 1, T)
-        if x.size(1) != 1:
-            raise ValueError(f"Expected 1 input channel, got {x.size(1)} channels")
+        if self.dtype_is_complex:
+            # Complex input: (batch, T) -> (batch, 1, T)
+            if x.dim() == 2:
+                x = x.unsqueeze(1)  # (batch, 1, T)
+            if x.size(1) != 1:
+                raise ValueError(f"Expected 1 input channel, got {x.size(1)} channels")
+        else:
+            # Real input: (2, batch, T) -> (2, batch, 1, T)
+            if x.dim() == 3:
+                x = x.unsqueeze(2)
+            if x.size(2) != 1:
+                raise ValueError(f"Expected 1 input channel, got {x.size(2)}")
 
         # Forward pass
         y, z = self.encoder(x)  # (batch, N, T), (batch, M, T)
@@ -103,8 +126,13 @@ class CTDCR_net(nn.Module):
         s = y * z  # Elementwise (Hadamard) product
         s = self.decoder(s)
 
-        if original_dim == 2:
-            s = s.squeeze(1)  # (batch, T)
+        # Restore original dimensions
+        if self.dtype_is_complex:
+            if original_dim == 2:
+                s = s.squeeze(1)  # (batch, T)
+        else:
+            if original_dim == 3:
+                s = s.squeeze(2)  # (2, batch, T)
 
         return s
 
@@ -112,24 +140,46 @@ class CTDCR_net(nn.Module):
 def test_model():
     batch_size = 4
     signal_length = 2048  # T
+    dtypes = [torch.complex64, torch.float32]
 
-    model = CTDCR_net()
+    for dtype in dtypes:
+        print(f"Testing dtype: {dtype}")
 
-    print(f"Total Parameters: {sum(p.numel() for p in model.parameters()):,}")
+        model = CTDCR_net(dtype=dtype)
 
-    print("Testing 3D input")
-    input = torch.rand((batch_size, 1, signal_length), dtype=torch.complex64)
-    output: torch.Tensor = model(input)  # Forward pass
+        total_params = sum(p.numel() for p in model.parameters())
+        total_memory = sum(p.element_size() * p.nelement() for p in model.parameters())
 
-    print("Input shape:", input.shape)
-    print("Output shape:", output.shape)
+        print(f"Total Parameters: {total_params:,}")
+        print(f"Total Size: {total_memory:,} bytes")
 
-    print("Testing 2D input")
-    input = torch.rand((batch_size, signal_length), dtype=torch.complex64)
-    output: torch.Tensor = model(input)  # Forward pass
+        # Test both 2D and 3D inputs for each dtype
+        if dtype in (torch.complex32, torch.complex64, torch.complex128):
+            print("Testing 3D complex input")
+            input = torch.rand((batch_size, 1, signal_length), dtype=dtype)
+            output = model(input)
+            print("Input shape:", input.shape)
+            print("Output shape:", output.shape)
 
-    print("Input shape:", input.shape)
-    print("Output shape:", output.shape)
+            print("Testing 2D complex input")
+            input = torch.rand((batch_size, signal_length), dtype=dtype)
+            output = model(input)
+            print("Input shape:", input.shape)
+            print("Output shape:", output.shape)
+        else:
+            print("Testing 4D real input")
+            input = torch.rand((2, batch_size, 1, signal_length), dtype=dtype)
+            output = model(input)
+            print("Input shape:", input.shape)
+            print("Output shape:", output.shape)
+
+            print("Testing 3D real input")
+            input = torch.rand((2, batch_size, signal_length), dtype=dtype)
+            output = model(input)
+            print("Input shape:", input.shape)
+            print("Output shape:", output.shape)
+
+        print("")
 
 
 if __name__ == "__main__":
