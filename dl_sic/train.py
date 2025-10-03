@@ -8,7 +8,7 @@ from tqdm import tqdm
 from dl_sic.model.complex_tdcr_net import ComplexTDCRnet
 from utils.training import set_seed, TrainingLogger
 from utils.dataset import DummyDataset, LoadDataset, create_dataloaders
-from utils.loss_functions import mse_loss_complex, si_snr_loss_complex
+from utils.loss_functions import si_snr_loss_complex
 
 
 def train_epoch(
@@ -131,10 +131,7 @@ def train_ctdcr_net(
         val_split=val_split,
         split_seed=seed,
     )
-    # loss_function = lambda pred, target: torch.mean(
-    #     0 * mse_loss_complex(pred, target) - si_snr_loss_complex(pred, target)
-    # )  # Batch average
-    # loss_function = mse_loss_complex
+
     loss_function = si_snr_loss_complex
 
     optimiser = torch.optim.Adam(
