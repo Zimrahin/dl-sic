@@ -92,7 +92,28 @@ class RealTDCRnet(nn.Module):
 
         Output shape: (batch, 2, T)
         """
-        # Forward pass
+
+        original_dim = x.dim()
+        # Convert complex input to real channel format
+        if torch.is_complex(x):
+
+            # Input shape handling
+            if x.dim() == 2:
+                x = x.unsqueeze(1)  # (batch, 1, T)
+            if x.size(1) != 1:
+                raise ValueError(f"Expected 1 input channel, got {x.size(1)} channels")
+
+            # Complex input: (batch, 1, T) -> (batch, 2, T)
+            x_channels = torch.stack([x.real, x.imag], dim=1)  # (batch, 2, T)
+        else:
+            # Already in real format, assume (batch, 2, T)
+            if x.dim() == 3 and x.size(1) == 2:
+                x_channels = x
+            else:
+                raise ValueError(f"Unexpected input format: {x.shape}")
+
+        # Forward pass through real network
+        x_channels = x_channels.to(self.dtype)
         y, z = self.encoder(x)  # (batch, N, T), (batch, M, T)
 
         for cdc in self.cdc_left:
@@ -110,7 +131,17 @@ class RealTDCRnet(nn.Module):
         s = y * z  # Elementwise product
         s = self.decoder(s)  # (batch, 2, T)
 
-        return s
+        # Convert back to complex
+        s_real = s[:, 0, :]  # (batch, T)
+        s_imag = s[:, 1, :]  # (batch, T)
+        s_complex = torch.complex(s_real, s_imag)  # (batch, T)
+        s_complex = s_complex.unsqueeze(1)  # (batch, 1, T)
+
+        # Restore original dimensions
+        if original_dim == 2:
+            s_complex = s_complex.squeeze(1)  # (batch, T)
+
+        return s_complex
 
 
 def test_model():
@@ -132,8 +163,8 @@ def test_model():
         # Real input: (batch, 2, T)
         input = torch.rand((batch_size, 2, signal_length), dtype=dtype)
         output = model(input)
-        print("Input shape:", input.shape)
-        print("Output shape:", output.shape)
+        print(f"Input shape: {input.shape}, dtype: {input.dtype}")
+        print(f"Output shape: {output.shape}, dtype: {output.dtype}")
 
         print("")
 
