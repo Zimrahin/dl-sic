@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 
-from model.ctdcr_net import CTDCR_net
+from dl_sic.model.complex_tdcr_net import ComplexTDCRnet
 from utils.training import set_seed, TrainingLogger
 from utils.dataset import DummyDataset, LoadDataset, create_dataloaders
 from utils.loss_functions import mse_loss_complex, si_snr_loss_complex
@@ -121,7 +121,7 @@ def train_ctdcr_net(
     print(f"Using device: {device}")
 
     # Initialise model, dataloaders, loss function, and optimiser
-    model = CTDCR_net(M, N, U, H, V).to(device)
+    model = ComplexTDCRnet(M, N, U, H, V).to(device)
     print(f"Trainable parameters: {sum(p.numel() for p in model.parameters()):,}")
     train_loader, val_loader = create_dataloaders(
         dataset,

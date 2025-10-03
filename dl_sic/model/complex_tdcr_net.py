@@ -9,7 +9,7 @@ from .activation_functions import ComplexPReLU, ComplexSigmoid
 from .complex_operations import ComplexConv1d
 
 
-class CTDCR_net(nn.Module):
+class ComplexTDCRnet(nn.Module):
     """
     Complex Time-Domain Dilated Convolutional Recurrent Network from Guo et al., 2024.
     """
@@ -145,7 +145,7 @@ def test_model():
     for dtype in dtypes:
         print(f"Testing dtype: {dtype}")
 
-        model = CTDCR_net(dtype=dtype)
+        model = ComplexTDCRnet(dtype=dtype)
 
         total_params = sum(p.numel() for p in model.parameters())
         total_memory = sum(p.element_size() * p.nelement() for p in model.parameters())

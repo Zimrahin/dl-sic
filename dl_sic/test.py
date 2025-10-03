@@ -4,7 +4,7 @@ import torch
 import matplotlib.pyplot as plt
 import numpy as np
 
-from model.ctdcr_net import CTDCR_net
+from dl_sic.model.complex_tdcr_net import ComplexTDCRnet
 from utils.dataset import LoadDataset
 from utils.loss_functions import si_snr_loss_complex
 
@@ -143,7 +143,7 @@ if __name__ == "__main__":
     print(f"Loaded dataset with {len(dataset)} examples")
 
     M, N, U, H, V = 128, 32, 128, 32, 8  # CTDCR net parameters
-    model = CTDCR_net(M, N, U, H, V).to(device)  # Initialise model
+    model = ComplexTDCRnet(M, N, U, H, V).to(device)  # Initialise model
     print(f"Trainable parameters: {sum(p.numel() for p in model.parameters()):,}")
 
     # Load checkpoint
