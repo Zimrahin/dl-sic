@@ -137,7 +137,9 @@ class ComplexTDCRnet(nn.Module):
             if original_dim == 2:
                 s = s.squeeze(1)  # (batch, T)
         else:
-            if original_dim == 2:
+            if original_dim == 2 and input_is_complex:
+                s = s.squeeze(2)  # (2, batch, T)
+            elif original_dim == 3 and not input_is_complex:
                 s = s.squeeze(2)  # (2, batch, T)
 
         # Always return complex for simplicity
