@@ -142,8 +142,8 @@ if __name__ == "__main__":
     dataset = LoadDataset(args.dataset_path, target_idx=args.target)
     print(f"Loaded dataset with {len(dataset)} examples")
 
-    M, N, U, H, V = 128, 32, 128, 32, 8  # CTDCR net parameters
-    model = ComplexTDCRnet(M, N, U, H, V).to(device)  # Initialise model
+    M, N, U, V = 128, 32, 128, 8  # CTDCR net parameters
+    model = ComplexTDCRnet(M, N, U, V).to(device)  # Initialise model
     print(f"Trainable parameters: {sum(p.numel() for p in model.parameters()):,}")
 
     # Load checkpoint

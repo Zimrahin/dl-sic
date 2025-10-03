@@ -113,7 +113,7 @@ def train_ctdcr_net(
     checkpoints_dir = "./checkpoints"
     logger = TrainingLogger(checkpoints_dir, resume=resume)
 
-    M, N, U, H, V = 128, 32, 128, 32, 8  # CTDCR net parameters
+    M, N, U, V = 128, 32, 128, 8  # CTDCR net parameters
 
     set_seed(seed)
     os.makedirs(checkpoints_dir, exist_ok=True)
@@ -121,7 +121,7 @@ def train_ctdcr_net(
     print(f"Using device: {device}")
 
     # Initialise model, dataloaders, loss function, and optimiser
-    model = ComplexTDCRnet(M, N, U, H, V).to(device)
+    model = ComplexTDCRnet(M, N, U, V).to(device)
     print(f"Trainable parameters: {sum(p.numel() for p in model.parameters()):,}")
     train_loader, val_loader = create_dataloaders(
         dataset,
