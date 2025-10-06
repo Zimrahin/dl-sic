@@ -1,9 +1,9 @@
 import os
+import argparse
 from utils.training import TrainingLogger
-from pathlib import Path
 
 
-def view_training_log(log_path: str = "./checkpoints"):
+def plot_training_log(log_path: str = "./checkpoints"):
     if not os.path.exists(log_path):
         print(f"No training log found at {log_path}")
         return
@@ -21,4 +21,12 @@ def view_training_log(log_path: str = "./checkpoints"):
 
 
 if __name__ == "__main__":
-    view_training_log()
+    parser = argparse.ArgumentParser(description="Plot Training Log")
+    parser.add_argument(
+        "--log_path",
+        type=str,
+        default="./checkpoints",
+        help="Path to the training log directory",
+    )
+    args = parser.parse_args()
+    plot_training_log(log_path=args.log_path)

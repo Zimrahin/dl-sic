@@ -6,6 +6,7 @@ import torch.nn as nn
 from tqdm import tqdm
 
 from model.complex_tdcr_net import ComplexTDCRnet
+from model.real_tdcr_net import RealTDCRnet
 from utils.training import set_seed, TrainingLogger
 from utils.dataset import DummyDataset, LoadDataset, create_dataloaders
 from utils.loss_functions import si_snr_loss_complex
@@ -111,12 +112,12 @@ def train_tdcr_net(
     model_param_N: int = 32,
     model_param_U: int = 128,
     model_param_V: int = 8,
+    checkpoints_dir: str = "./checkpoints",
 ) -> None:
     if resume and pretrained_weights is not None:
         raise ValueError("Cannot use both --resume and --pretrained_weights")
 
     seed = 0  # For reproducibility
-    checkpoints_dir = "./checkpoints"
     logger = TrainingLogger(checkpoints_dir, resume=resume)
 
     M, N, U, V = (
@@ -145,6 +146,7 @@ def train_tdcr_net(
     total_memory = sum(p.element_size() * p.nelement() for p in model.parameters())
     print(f"Trainable parameters: {total_params:,}, dtype: {dtype}")
     print(f"Total Size: {total_memory:,} bytes")
+
     train_loader, val_loader = create_dataloaders(
         dataset,
         batch_size,
@@ -334,11 +336,17 @@ if __name__ == "__main__":
         default=8,
         help="Dilated convolutions on each side of the LSTM",
     )
+    parser.add_argument(
+        "--checkpoints_dir",
+        type=str,
+        default="./checkpoints",
+        help="Directory to save checkpoints and logs",
+    )
     args = parser.parse_args()
 
     # Loads all the dataset in RAM. Must change later (this is what DataLoaders are used for)
     dataset = LoadDataset(args.dataset_path, target_idx=args.target)
-    # dataset = DummyDataset(10000, 4096)
+    # dataset = DummyDataset(num_signals=10, signal_length=1024)
 
     dtype_map: dict = {
         "complex64": torch.complex64,
@@ -364,4 +372,5 @@ if __name__ == "__main__":
         model_param_N=args.model_param_N,
         model_param_U=args.model_param_U,
         model_param_V=args.model_param_V,
+        checkpoints_dir=args.checkpoints_dir,
     )
