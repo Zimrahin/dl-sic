@@ -13,6 +13,7 @@ from simulation.channel import (
 import argparse
 import matplotlib.pyplot as plt
 import os
+import sys
 from tqdm import tqdm
 
 
@@ -191,7 +192,10 @@ class SignalDatasetGenerator:
             (self.cfg.num_signals, self.cfg.signal_length), dtype=torch.complex64
         )
         for i in tqdm(
-            range(self.cfg.num_signals), desc="Generating dataset", mininterval=1.0
+            range(self.cfg.num_signals),
+            desc="Generating dataset",
+            mininterval=1.0,
+            disable=not sys.stdout.isatty(),  # Disable tqdm for Slurm jobs
         ):
             mixture_np, s1_np, s2_np = self._generate_mixture()
             mixtures[i] = torch.from_numpy(mixture_np)

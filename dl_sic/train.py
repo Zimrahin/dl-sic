@@ -1,4 +1,5 @@
 import os
+import sys
 import argparse
 import time
 import torch
@@ -33,6 +34,7 @@ def train_epoch(
         desc=f"Train epoch {epoch}",
         mininterval=1.0,  # Update at most once per second
         leave=True,
+        disable=not sys.stdout.isatty(),  # Disable tqdm for Slurm jobs
     )
     for batch_idx, (mixture, target) in progress_bar:
         mixture = mixture.to(device, non_blocking=non_blocking)
