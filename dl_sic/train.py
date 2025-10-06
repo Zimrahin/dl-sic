@@ -94,7 +94,7 @@ def validate_epoch(
     return avg_epoch_loss
 
 
-def train_ctdcr_net(
+def train_tdcr_net(
     dataset: torch.utils.data.Dataset,
     batch_size: int,
     epochs: int,
@@ -102,9 +102,15 @@ def train_ctdcr_net(
     learning_rate: float = 1e-3,
     weight_decay: float = 0.0,
     *,
+    model_type: str = "complex",  # Use complex arithmetic (complex convs, norms, etc.) or real (treat real/imag as independent channels)
+    dtype: torch.dtype = torch.complex64,
     resume: bool = False,
     pretrained_weights: str | None = None,
     num_workers: int = 0,  # Default DataLoader value
+    model_param_M: int = 128,
+    model_param_N: int = 32,
+    model_param_U: int = 128,
+    model_param_V: int = 8,
 ) -> None:
     if resume and pretrained_weights is not None:
         raise ValueError("Cannot use both --resume and --pretrained_weights")
@@ -113,7 +119,12 @@ def train_ctdcr_net(
     checkpoints_dir = "./checkpoints"
     logger = TrainingLogger(checkpoints_dir, resume=resume)
 
-    M, N, U, V = 128, 32, 128, 8  # CTDCR net parameters
+    M, N, U, V = (
+        model_param_M,
+        model_param_N,
+        model_param_U,
+        model_param_V,
+    )  # TDCR net parameters
 
     set_seed(seed)
     os.makedirs(checkpoints_dir, exist_ok=True)
@@ -121,8 +132,19 @@ def train_ctdcr_net(
     print(f"Using device: {device}")
 
     # Initialise model, dataloaders, loss function, and optimiser
-    model = ComplexTDCRnet(M, N, U, V).to(device)
-    print(f"Trainable parameters: {sum(p.numel() for p in model.parameters()):,}")
+    if model_type == "complex":
+        model = ComplexTDCRnet(M, N, U, V, dtype=dtype).to(device)
+        print("Using complex model (complex arithmetic)")
+    else:
+        if dtype in (torch.complex32, torch.complex64, torch.complex128):
+            raise ValueError(f"Real model cannot use complex dtype {dtype}")
+        model = RealTDCRnet(M, N, U, V, dtype=dtype).to(device)
+        print("Using real model (independent real/imag channels)")
+
+    total_params = sum(p.numel() for p in model.parameters())
+    total_memory = sum(p.element_size() * p.nelement() for p in model.parameters())
+    print(f"Trainable parameters: {total_params:,}, dtype: {dtype}")
+    print(f"Total Size: {total_memory:,} bytes")
     train_loader, val_loader = create_dataloaders(
         dataset,
         batch_size,
@@ -231,7 +253,9 @@ def train_ctdcr_net(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="CTDCR Network Training")
+    parser = argparse.ArgumentParser(
+        description="Time-Domain Dilated Convolutional Recurrent Network Training"
+    )
     parser.add_argument(
         "--batch_size", type=int, default=1, help="Input batch size for training"
     )
@@ -272,20 +296,72 @@ if __name__ == "__main__":
         default=0,
         help="Number of subprocesses for data loading",
     )
+    parser.add_argument(
+        "--model_type",
+        type=str,
+        choices=["complex", "real"],
+        default="complex",
+        help="Type of model: complex (complex arithmetic) or real (independent channels)",
+    )
+    parser.add_argument(
+        "--dtype",
+        type=str,
+        choices=["complex64", "float32", "float16", "bfloat16"],
+        default="complex64",
+        help="Data type for model parameters and operations",
+    )
+    parser.add_argument(
+        "--model_param_M",
+        type=int,
+        default=128,
+        help="Middle channels in the complex encoder",
+    )
+    parser.add_argument(
+        "--model_param_N",
+        type=int,
+        default=32,
+        help="Out channels of encoder and input to LSTM = H",
+    )
+    parser.add_argument(
+        "--model_param_U",
+        type=int,
+        default=128,
+        help="Middle channels in complex dilated convolution",
+    )
+    parser.add_argument(
+        "--model_param_V",
+        type=int,
+        default=8,
+        help="Dilated convolutions on each side of the LSTM",
+    )
     args = parser.parse_args()
 
     # Loads all the dataset in RAM. Must change later (this is what DataLoaders are used for)
     dataset = LoadDataset(args.dataset_path, target_idx=args.target)
     # dataset = DummyDataset(10000, 4096)
 
-    train_ctdcr_net(
+    dtype_map: dict = {
+        "complex64": torch.complex64,
+        "float32": torch.float32,
+        "float16": torch.float16,
+        "bfloat16": torch.bfloat16,
+    }
+    dtype = dtype_map[args.dtype]
+
+    train_tdcr_net(
         dataset=dataset,
         batch_size=args.batch_size,
         epochs=args.epochs,
         val_split=args.val_split,
         learning_rate=args.learning_rate,
         weight_decay=args.weight_decay,
+        model_type=args.model_type,
+        dtype=dtype,
         resume=args.resume,
         pretrained_weights=args.pretrained_weights,
         num_workers=args.num_workers,
+        model_param_M=args.model_param_M,
+        model_param_N=args.model_param_N,
+        model_param_U=args.model_param_U,
+        model_param_V=args.model_param_V,
     )
