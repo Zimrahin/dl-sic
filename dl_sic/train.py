@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 
-from dl_sic.model.complex_tdcr_net import ComplexTDCRnet
+from model.complex_tdcr_net import ComplexTDCRnet
 from utils.training import set_seed, TrainingLogger
 from utils.dataset import DummyDataset, LoadDataset, create_dataloaders
 from utils.loss_functions import si_snr_loss_complex
