@@ -20,7 +20,7 @@ def set_seed(seed: int) -> None:
 class TrainingLogger:
     def __init__(self, log_path: str, resume: bool = False, read_only: bool = False):
         self.log_path = Path(log_path) / "training_log.json"
-        self.log_path.parent.mkdir(exist_ok=True)
+        self.log_path.parent.mkdir(exist_ok=True, parents=True)
 
         if read_only:
             if self.log_path.exists():
