@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=$(basename "$0" .sh)    # Job name equals shell file name
+#SBATCH --job-name=train_complex_f32    # Job name equals shell file name
 #SBATCH --cpus-per-gpu=1         # Dataloader num_workers + 1 (>1 if multi-threaded tasks)
 #SBATCH --partition=gpu          # Name of the partition
 #SBATCH --gres=gpu:1             # Number and type of GPU cards and type allocated
