@@ -172,6 +172,7 @@ if __name__ == "__main__":
         help="Dilated convolutions on each side of the LSTM",
     )
     args = parser.parse_args()
+
     dtype_map: dict = {
         "complex64": torch.complex64,
         "float32": torch.float32,
