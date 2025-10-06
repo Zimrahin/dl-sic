@@ -259,6 +259,20 @@ if __name__ == "__main__":
         description="Time-Domain Dilated Convolutional Recurrent Network Training"
     )
     parser.add_argument(
+        "--model_type",
+        type=str,
+        choices=["complex", "real"],
+        default="complex",
+        help="Type of model: complex (complex arithmetic) or real (independent channels)",
+    )
+    parser.add_argument(
+        "--dtype",
+        type=str,
+        choices=["complex64", "float32", "float16", "bfloat16"],
+        default="complex64",
+        help="Data type for model parameters and operations",
+    )
+    parser.add_argument(
         "--batch_size", type=int, default=1, help="Input batch size for training"
     )
     parser.add_argument(
@@ -297,20 +311,6 @@ if __name__ == "__main__":
         type=int,
         default=0,
         help="Number of subprocesses for data loading",
-    )
-    parser.add_argument(
-        "--model_type",
-        type=str,
-        choices=["complex", "real"],
-        default="complex",
-        help="Type of model: complex (complex arithmetic) or real (independent channels)",
-    )
-    parser.add_argument(
-        "--dtype",
-        type=str,
-        choices=["complex64", "float32", "float16", "bfloat16"],
-        default="complex64",
-        help="Data type for model parameters and operations",
     )
     parser.add_argument(
         "--model_param_M",

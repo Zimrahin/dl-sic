@@ -116,6 +116,20 @@ def test_model(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="CTDCR Network Test")
     parser.add_argument(
+        "--model_type",
+        type=str,
+        choices=["complex", "real"],
+        default="complex",
+        help="Type of model: complex (complex arithmetic) or real (independent channels)",
+    )
+    parser.add_argument(
+        "--dtype",
+        type=str,
+        choices=["complex64", "float32", "float16", "bfloat16"],
+        default="complex64",
+        help="Data type for model parameters and operations",
+    )
+    parser.add_argument(
         "--dataset_path",
         type=str,
         default="../data/simulated_dataset.pt",
@@ -156,20 +170,6 @@ if __name__ == "__main__":
         type=int,
         default=8,
         help="Dilated convolutions on each side of the LSTM",
-    )
-    parser.add_argument(
-        "--model_type",
-        type=str,
-        choices=["complex", "real"],
-        default="complex",
-        help="Type of model: complex (complex arithmetic) or real (independent channels)",
-    )
-    parser.add_argument(
-        "--dtype",
-        type=str,
-        choices=["complex64", "float32", "float16", "bfloat16"],
-        default="complex64",
-        help="Data type for model parameters and operations",
     )
     args = parser.parse_args()
     dtype_map: dict = {
