@@ -77,7 +77,8 @@ def validate_epoch(
         enumerate(val_loader),
         total=len(val_loader),
         desc=f"Validation epoch {epoch}",
-        leave=True,  # Keep progress bar after completion
+        leave=True,
+        disable=not sys.stdout.isatty(),  # Disable tqdm for Slurm jobs
     )
 
     with torch.no_grad():
