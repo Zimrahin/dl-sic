@@ -11,7 +11,7 @@
 
 echo "### Running $SLURM_JOB_NAME ###"
 
-set -x
+set +x  # Turn off verbose mode
 cd ${SLURM_SUBMIT_DIR}
 
 module purge
@@ -21,7 +21,7 @@ source /home/$USER/.bashrc
 # PyTorch environment should be created previously
 source activate pt_env
 
-python ./train.py \
+python train.py \
     --model_type "complex" \
     --dtype "float32" \
     --batch_size 1 \
