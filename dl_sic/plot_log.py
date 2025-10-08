@@ -10,7 +10,7 @@ def plot_training_log(log_path: str = "./checkpoints"):
 
     logger = TrainingLogger(log_path, read_only=True)
     logger._load_log()
-    logger.plot_losses()
+    logger.plot_loss(figsize=(5, 3))
 
     print(f"Training run started at: {logger.log_data['start_time']}")
     print(f"Total epochs: {len(logger.log_data['epochs'])}")

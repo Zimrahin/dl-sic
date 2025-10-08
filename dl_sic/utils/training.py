@@ -70,12 +70,17 @@ class TrainingLogger:
         self.log_data["best_val_loss"] = float(best_val_loss)
         self._save_log()
 
-    def plot_losses(self, save_path: str | None = None):
+    def plot_loss(
+        self,
+        save_path: str | None = None,
+        figsize: tuple = (10, 6),
+        loss_type: str = "SI-SNR (dB)",
+    ):
         if len(self.log_data["epochs"]) == 0:
             print("No data to plot")
             return
 
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=figsize)
         plt.plot(
             self.log_data["epochs"],
             self.log_data["train_loss"],
@@ -107,9 +112,10 @@ class TrainingLogger:
 
         plt.title("Training and Validation Loss")
         plt.xlabel("Epoch")
-        plt.ylabel("Loss")
+        plt.ylabel(f"Loss: {loss_type}")
         plt.legend()
         plt.grid(True, alpha=0.3)
+        plt.tight_layout()
 
         if save_path:
             plt.savefig(save_path, dpi=150, bbox_inches="tight")
