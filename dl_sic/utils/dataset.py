@@ -5,8 +5,8 @@ import numpy as np
 class DummyDataset(torch.utils.data.Dataset):
     def __init__(self, num_signals: int, signal_length: int = 1024, seed: int = 0):
         torch.manual_seed(seed)
-        self.mixture = torch.randn(num_signals, signal_length, dtype=torch.complex64)
-        self.target = torch.randn(num_signals, signal_length, dtype=torch.complex64)
+        self.mixture = torch.randn(num_signals, 1, signal_length, dtype=torch.complex64)
+        self.target = torch.randn(num_signals, 1, signal_length, dtype=torch.complex64)
 
     def __len__(self):
         return self.mixture.shape[0]
@@ -69,6 +69,15 @@ class LoadDataset(torch.utils.data.Dataset):
         self.mixtures = all_tensors[0]
         # Store only the selected target tensor
         self.target_tensor = all_tensors[target_idx]
+
+        if self.mixtures.dim() == 2:  # (num_signals, signal_length)
+            self.mixtures = self.mixtures.unsqueeze(
+                1
+            )  # (num_signals, 1, signal_length)
+        if self.target_tensor.dim() == 2:  # (num_signals, signal_length)
+            self.target_tensor = self.target_tensor.unsqueeze(
+                1
+            )  # (num_signals, 1, signal_length)
 
         del all_tensors
         del dataset

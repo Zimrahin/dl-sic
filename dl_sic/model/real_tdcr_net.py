@@ -86,42 +86,33 @@ class RealTDCRnet(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Input shape handling:
-        - For complex: (batch, T) or (batch, 1, T) complex tensor
-        - For real: (batch, 2, T) real tensor
-        Output: Always complex tensor
+        Input shape:
+        - Complex: (batch, 1, T)
+        - Real: (batch, 2, T)
+        Output: Same shape and type as input
         """
-
-        original_dim = x.dim()
+        if x.dim() != 3:
+            raise ValueError(
+                f"Expected 3D input (batch, channels, T), got {tuple(x.shape)}"
+            )
         input_is_complex = torch.is_complex(x)
 
-        # Input shape handling
         if input_is_complex:
-            # Complex input: (batch, T) -> (batch, 1, T)
-            if x.dim() == 2:
-                x = x.unsqueeze(1)
             if x.size(1) != 1:
-                raise ValueError(f"Expected 1 input channel, got {x.size(1)} channels")
-
-            # Convert complex input to real channel representation: (batch, 1, T) -> (batch, 2, T)
-            x_real = x.real
-            x_imag = x.imag
-            x_channels = torch.stack([x_real, x_imag], dim=1)  # (batch, 2, T)
-            x_channels = x_channels.squeeze(
-                2
-            )  # Remove the channel dimension from complex input
-
-        else:
-            # Real input: only (batch, 2, T)
-            if x.dim() != 3 or x.size(1) != 2:
                 raise ValueError(
-                    f"Expected real input shape (batch, 2, T), got {x.shape}"
+                    f"Expected 1 complex channel, got {x.size(1)} channels"
                 )
-            x_channels = x
+            # Complex 1D -> Real 2D: (batch, 1, T) -> (batch, 2, T)
+            x = torch.stack([x.real, x.imag], dim=1)  # (batch, 2, 1, T)
+            x = x.squeeze(2)  # (batch, 2, T)
+        else:
+            # Real input: (batch, 2, T)
+            if x.size(1) != 2:
+                raise ValueError(f"Expected 2 real channels, got {x.size(1)} channels")
 
         # Forward pass through real network
-        x_channels = x_channels.to(self.dtype)
-        y, z = self.encoder(x_channels)  # (batch, N, T), (batch, M, T)
+        x = x.to(self.dtype)
+        y, z = self.encoder(x)  # (batch, N, T), (batch, M, T)
 
         for cdc in self.cdc_left:
             y = cdc(y)  # (batch, N, T)
@@ -138,15 +129,12 @@ class RealTDCRnet(nn.Module):
         s = y * z  # Elementwise product
         s = self.decoder(s)  # (batch, 2, T)
 
-        # Convert back to complex
-        s_complex = torch.complex(s[:, 0, :], s[:, 1, :])  # (batch, T)
-        s_complex = s_complex.unsqueeze(1)  # (batch, 1, T)
+        if input_is_complex:
+            # Convert back to complex: (batch, 2, T) -> (batch, 1, T)
+            s = torch.complex(s[:, 0, :], s[:, 1, :])  # (batch, T)
+            s = s.unsqueeze(1)  # (batch, 1, T)
 
-        # Restore original dimensions
-        if input_is_complex and original_dim == 2:
-            s_complex = s_complex.squeeze(1)  # (batch, T)
-
-        return s_complex
+        return s
 
 
 def test_model():
@@ -174,12 +162,6 @@ def test_model():
         # Test with complex inputs (will be converted internally)
         print("Testing 3D complex input")
         input = torch.rand((batch_size, 1, signal_length), dtype=complex_dtype)
-        output = model(input)
-        print(f"Input shape: {input.shape}, dtype: {input.dtype}")
-        print(f"Output shape: {output.shape}, dtype: {output.dtype}")
-
-        print("Testing 2D complex input")
-        input = torch.rand((batch_size, signal_length), dtype=complex_dtype)
         output = model(input)
         print(f"Input shape: {input.shape}, dtype: {input.dtype}")
         print(f"Output shape: {output.shape}, dtype: {output.dtype}")

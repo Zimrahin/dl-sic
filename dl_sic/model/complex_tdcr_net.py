@@ -88,31 +88,32 @@ class ComplexTDCRnet(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Input shape handling for both complex and real dtypes:
-        - For complex: (batch, T) or (batch, 1, T) complex tensor
-        - For real: (2, batch, T) or (2, batch, 1, T) real tensor
-        Output: Always complex tensor in same format as input
+        Input shape:
+        - Complex: (batch, 1, T)
+        - Real: (batch, 2, T)
+        Output: Same shape and type as input
         """
-        original_dim = x.dim()
+        if x.dim() != 3:
+            raise ValueError(
+                f"Expected 3D input (batch, channels, T), got {tuple(x.shape)}D"
+            )
         input_is_complex = torch.is_complex(x)
 
-        # Input shape handling
-        original_dim = x.dim()
         if input_is_complex:
-            if x.dim() == 2:  # (batch, T) -> (batch, 1, T)
-                x = x.unsqueeze(1)  # (batch, 1, T)
+            # Complex input: (batch, 1, T)
             if x.size(1) != 1:
-                raise ValueError(f"Expected 1 input channel, got {x.size(1)} channels")
-
+                raise ValueError(
+                    f"Expected 1 complex channel, got {x.size(1)} channels"
+                )
             # If network uses real parameters but got complex input, convert to real representation
             if not self.dtype_is_complex:
                 x = torch.stack([x.real, x.imag], dim=0)  # (2, batch, 1, T)
         else:
-            # Real input: (2, batch, T) -> (2, batch, 1, T)
-            if x.dim() == 3:
-                x = x.unsqueeze(2)
-            if x.size(2) != 1:
-                raise ValueError(f"Expected 1 input channel, got {x.size(2)}")
+            # Real input: (batch, 2, T)
+            if x.size(1) != 2:
+                raise ValueError(f"Expected 2 real channels, got {x.size(1)} channels")
+            # Convert from (batch, 2, T) to (2, batch, 1, T) (complex modules expect this shape)
+            x = x.transpose(0, 1).unsqueeze(2)  # (2, batch, 1, T)
 
         # Forward pass
         y, z = self.encoder(x)  # (batch, N, T), (batch, M, T)
@@ -132,19 +133,13 @@ class ComplexTDCRnet(nn.Module):
         s = y * z  # Elementwise (Hadamard) product
         s = self.decoder(s)
 
-        # Restore original dimensions
-        if self.dtype_is_complex:
-            if original_dim == 2:
-                s = s.squeeze(1)  # (batch, T)
+        if input_is_complex:
+            if not self.dtype_is_complex:
+                # Convert back to complex: (2, batch, 1, T) -> (batch, 1, T)
+                s = torch.complex(s[0], s[1])
         else:
-            if original_dim == 2 and input_is_complex:
-                s = s.squeeze(2)  # (2, batch, T)
-            elif original_dim == 3 and not input_is_complex:
-                s = s.squeeze(2)  # (2, batch, T)
-
-        # Always return complex for simplicity
-        if not torch.is_complex(s):
-            s = torch.complex(s[0], s[1])
+            # Convert back to real representation: (2, batch, 1, T) -> (batch, 2, T)
+            s = s.squeeze(2).transpose(0, 1)
 
         return s
 
@@ -165,16 +160,10 @@ def test_model():
         print(f"Total Parameters: {total_params:,}")
         print(f"Total Size: {total_memory:,} bytes")
 
-        # Test both 2D and 3D inputs for each dtype
+        # Test 3D inputs for each dtype
         if dtype in (torch.complex32, torch.complex64, torch.complex128):
             print("Testing 3D complex input")
             input = torch.rand((batch_size, 1, signal_length), dtype=dtype)
-            output = model(input)
-            print(f"Input shape: {input.shape}, dtype: {input.dtype}")
-            print(f"Output shape: {output.shape}, dtype: {output.dtype}")
-
-            print("Testing 2D complex input")
-            input = torch.rand((batch_size, signal_length), dtype=dtype)
             output = model(input)
             print(f"Input shape: {input.shape}, dtype: {input.dtype}")
             print(f"Output shape: {output.shape}, dtype: {output.dtype}")
@@ -191,20 +180,8 @@ def test_model():
             print(f"Input shape: {input.shape}, dtype: {input.dtype}")
             print(f"Output shape: {output.shape}, dtype: {output.dtype}")
 
-            print("Testing 2D complex input")
-            input = torch.rand((batch_size, signal_length), dtype=complex_dtype)
-            output = model(input)
-            print(f"Input shape: {input.shape}, dtype: {input.dtype}")
-            print(f"Output shape: {output.shape}, dtype: {output.dtype}")
-
-            print("Testing 4D real input")
-            input = torch.rand((2, batch_size, 1, signal_length), dtype=dtype)
-            output = model(input)
-            print(f"Input shape: {input.shape}, dtype: {input.dtype}")
-            print(f"Output shape: {output.shape}, dtype: {output.dtype}")
-
             print("Testing 3D real input")
-            input = torch.rand((2, batch_size, signal_length), dtype=dtype)
+            input = torch.rand((batch_size, 2, signal_length), dtype=dtype)
             output = model(input)
             print(f"Input shape: {input.shape}, dtype: {input.dtype}")
             print(f"Output shape: {output.shape}, dtype: {output.dtype}")
