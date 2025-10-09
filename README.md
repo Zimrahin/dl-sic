@@ -12,7 +12,7 @@ Deep Learning-based Successive Interference Cancellation for BLE and IEEE 802.15
 To execute unit tests, run them as Python modules from the project root. For example:
 
 ```bash
-python -m dl_sic.model.ctdcr_net
+python -m dl_sic.model.complex_tdcr_net
 ```
 ---
 ## Checkpoints and Logging
@@ -41,14 +41,4 @@ If the `--resume` flag is provided, training will continue from the last stored 
 2. **Install the remaining dependencies**
    ```bash
    pip install -r requirements.txt
-   ```
-
-3. **Note on NumPy compatibility**
-
-   I encountered NumPy version conflicts with my GNU Radio installation using `numpy<2.2.0`.
-   Although `complextorch` library requires `numpy>=2.2.0`, it doesn't actually need it to work properly.
-
-   The following workaround worked for me, after having installed `complextorch` (tested with `complextorch 1.2.0`):
-   ```bash
-   pip install --upgrade "numpy<2.0"
    ```

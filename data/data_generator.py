@@ -146,7 +146,7 @@ class SignalDatasetGenerator:
 
         return signal
 
-    def _generate_mixture(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def generate_mixture(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Generate a mixture of two signals with impairments and noise"""
         # Generate base signals (size = signal_length)
         s1 = self._modulate_random_packet("ble", self.cfg.signal_length)
@@ -197,7 +197,7 @@ class SignalDatasetGenerator:
             mininterval=1.0,
             disable=not sys.stdout.isatty(),  # Disable tqdm for Slurm jobs
         ):
-            mixture_np, s1_np, s2_np = self._generate_mixture()
+            mixture_np, s1_np, s2_np = self.generate_mixture()
             mixtures[i] = torch.from_numpy(mixture_np)
             s1_targets[i] = torch.from_numpy(s1_np)
             s2_targets[i] = torch.from_numpy(s2_np)
@@ -280,7 +280,7 @@ if __name__ == "__main__":
 
     if args.test:
         # Generate and plot single example
-        mixture, target1, target2 = generator._generate_mixture()
+        mixture, target1, target2 = generator.generate_mixture()
         plot_signals(mixture, target1, target2, config.sample_rate)
 
     elif args.save is not None:
