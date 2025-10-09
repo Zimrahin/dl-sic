@@ -18,7 +18,7 @@ def plot_test_signals(
     loss_val: float,
 ) -> None:
     """Plot mixture, target and output"""
-    _, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True, figsize=(10, 8))
+    _, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True, figsize=(8, 6))
 
     # Convert to numpy if they're tensors
     if torch.is_tensor(mixture):
@@ -48,7 +48,7 @@ def plot_test_signals(
     ax3.plot(sample_axis, np.real(output), alpha=0.7, label="Real")
     ax3.plot(sample_axis, np.imag(output), alpha=0.7, label="Imag")
     ax3.set_ylabel("Amplitude")
-    ax3.set_title(f"Model Output (Loss: {loss_val:.6f})")
+    ax3.set_title(f"Model Output (Loss: {loss_val:.6f} dB)")
     ax3.set_xlabel("Sample Index")
     ax3.legend()
     ax3.grid(True)
