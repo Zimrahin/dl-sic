@@ -1,0 +1,15 @@
+name: pt_env
+channels:
+  - pytorch
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pytorch
+  - torchvision
+  - torchaudio
+  - cpuonly
+  - numpy
+  - scipy
+  - matplotlib
+  - tqdm
+  - gnuradio
