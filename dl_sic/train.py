@@ -35,6 +35,7 @@ def train_epoch(
         mininterval=1.0,  # Update at most once per second
         leave=True,
         disable=not sys.stdout.isatty(),  # Disable tqdm for Slurm jobs
+        postfix={"loss": "N/A"},
     )
     for batch_idx, (mixture, target) in progress_bar:
         mixture = mixture.to(device, non_blocking=non_blocking)
@@ -54,7 +55,7 @@ def train_epoch(
         # Update epoch loss and log
         total_loss += loss.item()
         avg_loss = total_loss / (batch_idx + 1)
-        progress_bar.set_postfix(loss=f"{avg_loss:.4f}")
+        progress_bar.postfix = f"loss={avg_loss:.4f}"
 
     return total_loss / len(train_loader)  # Average epoch loss
 
@@ -79,6 +80,7 @@ def validate_epoch(
         desc=f"Validation epoch {epoch}",
         leave=True,
         disable=not sys.stdout.isatty(),  # Disable tqdm for Slurm jobs
+        postfix={"loss": "N/A"},
     )
 
     with torch.no_grad():
@@ -91,7 +93,7 @@ def validate_epoch(
             loss: torch.Tensor = loss_function(output, target)
             total_loss += loss.item()
             avg_loss = total_loss / (batch_idx + 1)
-            progress_bar.set_postfix(loss=f"{avg_loss:.4f}")
+            progress_bar.postfix = f"loss={avg_loss:.4f}"
 
     avg_epoch_loss = total_loss / len(val_loader)
 
