@@ -132,7 +132,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset_path",
         type=str,
-        default="../data/simulated_dataset.pt",
+        default="./data/simulated_dataset.pt",
         help="Path to dataset file (.pt)",
     )
     parser.add_argument(

@@ -30,7 +30,7 @@ python train.py \
     --weight_decay 0 \
     --val_split 0.2 \
     --target 1 \
-    --dataset_path "../data/simulated_dataset.pt" \
+    --dataset_path "./data/simulated_dataset.pt" \
     --num_workers 0 \
     --model_param_M 128 \
     --model_param_N 64 \

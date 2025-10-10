@@ -1,4 +1,4 @@
 __pycache__/
 .venv/
 dl_sic/checkpoints/
-data/*.pt
+dl_sic/data/*.pt
