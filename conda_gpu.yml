@@ -13,4 +13,4 @@ dependencies:
   - scipy
   - matplotlib
   - tqdm
-  - gnuradio
+  - gnuradio=3.10.4.0
