@@ -1,8 +1,8 @@
 import numpy as np
 import torch
 from dataclasses import dataclass
-from simulation.transmitter import TransmitterBLE, Transmitter802154
-from simulation.channel import (
+from .simulation.transmitter import TransmitterBLE, Transmitter802154
+from .simulation.channel import (
     frequency_selective_fading,
     add_white_gaussian_noise,
     fractional_delay_fir_filter,

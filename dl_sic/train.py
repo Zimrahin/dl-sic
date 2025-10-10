@@ -11,6 +11,7 @@ from model.real_tdcr_net import RealTDCRnet
 from utils.training import set_seed, TrainingLogger
 from utils.dataset import DummyDataset, LoadDataset, create_dataloaders
 from utils.loss_functions import si_snr_loss_complex
+from data.data_generator import SignalDatasetGenerator, SimulationConfig
 
 
 def train_epoch(
@@ -347,10 +348,20 @@ if __name__ == "__main__":
         default="./checkpoints",
         help="Directory to save checkpoints and logs",
     )
+    parser.add_argument(
+        "--runtime_gen",
+        action="store_true",
+        help="Generate data on the fly instead of loading from file",
+    )
     args = parser.parse_args()
 
     # Loads all the dataset in RAM. Must change later (this is what DataLoaders are used for)
-    dataset = LoadDataset(args.dataset_path, target_idx=args.target)
+    dataset = LoadDataset(
+        target_idx=args.target,
+        runtime_generation=args.runtime_gen,
+        generator_class=SignalDatasetGenerator(SimulationConfig()),
+        dataset_path=args.dataset_path,
+    )
     # dataset = DummyDataset(num_signals=10, signal_length=1024)
 
     dtype_map: dict = {

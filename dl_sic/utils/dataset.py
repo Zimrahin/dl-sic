@@ -1,5 +1,5 @@
 import torch
-import numpy as np
+from data.data_generator import SignalDatasetGenerator
 
 
 class DummyDataset(torch.utils.data.Dataset):
@@ -57,33 +57,57 @@ class LoadDataset(torch.utils.data.Dataset):
     Dataset loader. Uses BLE (1) or IEEE 802.15.4 (2) as target
     """
 
-    def __init__(self, file_path: str, target_idx: int):
-        dataset: torch.utils.data.TensorDataset = torch.load(
-            file_path, weights_only=False
-        )
+    def __init__(
+        self,
+        target_idx: int,
+        runtime_generation: bool = True,  # Generate data on the fly
+        generator_class: SignalDatasetGenerator | None = None,
+        dataset_path: str | None = None,
+    ):
+        self.target_idx = target_idx
+        self.runtime_generation = runtime_generation
+        self.generator_class = generator_class
+
+        if runtime_generation:
+            if generator_class is None:
+                raise ValueError(
+                    "For runtime generation, generator_class must be provided."
+                )
+            # Signals per epoch for runtime generation
+            self.num_signals = generator_class.cfg.num_signals
+            return
+
+        # Load dataset otherwise
+        if dataset_path is None:
+            raise ValueError(
+                "For loading pregenerated data, dataset_path must be provided."
+            )
+        dataset = torch.load(dataset_path, weights_only=False)
         all_tensors = dataset.tensors
+
+        # Assume index 0 is the mixture, the rest are targets
         if target_idx < 1 or target_idx >= len(all_tensors):
             raise ValueError(f"Target index must be between 1 and {len(all_tensors)-1}")
-
-        # The first tensor is the input (mixture), the rest are targets
         self.mixtures = all_tensors[0]
-        # Store only the selected target tensor
         self.target_tensor = all_tensors[target_idx]
 
-        if self.mixtures.dim() == 2:  # (num_signals, signal_length)
-            self.mixtures = self.mixtures.unsqueeze(
-                1
-            )  # (num_signals, 1, signal_length)
-        if self.target_tensor.dim() == 2:  # (num_signals, signal_length)
-            self.target_tensor = self.target_tensor.unsqueeze(
-                1
-            )  # (num_signals, 1, signal_length)
+        self.num_signals = len(self.mixtures)
 
         del all_tensors
         del dataset
 
     def __len__(self):
-        return len(self.mixtures)
+        return self.num_signals
 
-    def __getitem__(self, idx):
-        return self.mixtures[idx], self.target_tensor[idx]
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+        if not self.runtime_generation:
+            mixture = self.mixtures[idx].unsqueeze(0)
+            target = self.target_tensor[idx].unsqueeze(0)
+        else:
+            mixture, *target = self.generator_class.generate_mixture()
+            target = target[self.target_idx - 1]
+
+            mixture = torch.from_numpy(mixture).unsqueeze(0)
+            target = torch.from_numpy(target).unsqueeze(0)
+
+        return mixture, target
