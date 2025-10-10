@@ -42,3 +42,13 @@ If the `--resume` flag is provided, training will continue from the last stored 
    ```bash
    pip install -r requirements.txt
    ```
+
+### Conda Installation
+
+```bash
+# GPU
+conda env create -f conda_gpu.yml
+# or CPU
+conda env create -f conda_cpu.yml
+conda activate pt_env
+```
