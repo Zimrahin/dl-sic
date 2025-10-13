@@ -7,9 +7,11 @@ Prerequisites
 Assuming, conda is already installed:
 
 ```bash
-conda create -n pt_env python=3.10
+# GPU
+conda env create -f conda_gpu.yml
+# or CPU
+conda env create -f conda_cpu.yml
 conda activate pt_env
-conda install pytorch torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia
 ```
 
 Submit a job

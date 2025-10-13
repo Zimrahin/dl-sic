@@ -35,5 +35,5 @@ python train.py \
     --model_param_N 64 \
     --model_param_U 128 \
     --model_param_V 8 \
-    --checkpoints_dir "./checkpoints/real_f32" \
+    --checkpoints_dir "./checkpoints/real_test" \
     --runtime_gen
