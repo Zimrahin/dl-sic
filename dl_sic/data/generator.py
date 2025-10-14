@@ -21,23 +21,23 @@ from .simulation.channel import (
 @dataclass
 class SimulationConfig:
     sample_rate: float = 4e6
-    num_signals: int = 5000
-    signal_length: int = 3000  # Samples
-    ble_payload_size_range: tuple[int, int] = (4, 61)  # Max exclusive
-    ieee802154_payload_size_range: tuple[int, int] = (4, 16)  # Max exclusive
+    num_signals: int = 4000
+    signal_length: int = 12000  # Samples
+    ble_payload_size_range: tuple[int, int] = (2, 256)  # Max exclusive
+    ieee802154_payload_size_range: tuple[int, int] = (2, 126)  # Max exclusive
     # Channel/impairment ranges
-    amplitude_range: tuple[float, float] = (0.3, 1.0)
-    freq_offset_range: tuple[float, float] = (-10e3, 10e3)
-    sample_delay_range: tuple[float, float] = (0, 1000)
-    snr_low_db_range: tuple[float, float] = (8.0, 25.0)  # SNR weaker signal
-    iq_imb_phase_range: tuple[float, float] = (0, 2)  # degrees
-    iq_imb_mag_range: tuple[float, float] = (0, 0.3)  # dB
+    amplitude_range: tuple[float, float] = (0.01, 0.80)
+    freq_offset_range: tuple[float, float] = (-20e3, 20e3)
+    sample_delay_range: tuple[float, float] = (0, 1500)
+    snr_low_db_range: tuple[float, float] = (0.0, 25.0)  # SNR weaker signal
+    iq_imb_phase_range: tuple[float, float] = (0, 4)  # degrees
+    iq_imb_mag_range: tuple[float, float] = (0, 0.6)  # dB
     rician_factor_range: tuple[float, float] = (0.0, 20.0)
     fading_max_doppler_speed: float = 20.0
-    fading_pdp_max_size: int = 3  # Maximum fading paths
-    fading_pdp_delay_range: tuple[float, float] = (0.0, 2.0)
+    fading_pdp_max_size: int = 8  # Maximum fading paths
+    fading_pdp_delay_range: tuple[float, float] = (0.0, 4.0)
     fading_pdp_power_range: tuple[float, float] = (0.99, 0.1)
-    adc_bits_range: tuple[int, int] | None = None  # Clipping and quantisation
+    adc_bits_range: tuple[int, int] | None = (8, 16)  # Clipping and quantisation
     seed: int | None = None
 
 
@@ -70,9 +70,10 @@ class SignalDatasetGenerator:
             modulated_signal = self.ieee802154_tx.modulate_from_payload(payload)
 
         if len(modulated_signal) > signal_length:
-            raise ValueError(
-                f"Modulated signal length ({len(modulated_signal)}) exceeds input signal_length ({signal_length}). "
-            )
+            # print(
+            #     f"Warning: Modulated signal length ({len(modulated_signal)}) exceeds input signal_length ({signal_length}). Truncating."
+            # )
+            modulated_signal = modulated_signal[:signal_length]
 
         # Zero-pad to the right to achieve the desired length
         padded_signal = np.pad(
@@ -172,12 +173,16 @@ class SignalDatasetGenerator:
         s2_out = self._delay_and_offsets(s2)
         amplitude1 = np.random.uniform(*self.cfg.amplitude_range)
         amplitude2 = np.random.uniform(*self.cfg.amplitude_range)
-        s1_out = amplitude1 * s1_out
-        s2_out = amplitude2 * s2_out
 
         # Apply fading channel + AWGN
         s1_out = self._apply_fading_channel(s1_out)
         s2_out = self._apply_fading_channel(s2_out)
+
+        s1_out /= np.max(np.abs(s1_out)) + 1e-12  # Normalise to avoid clipping
+        s2_out /= np.max(np.abs(s2_out)) + 1e-12
+        s1_out = amplitude1 * s1_out
+        s2_out = amplitude2 * s2_out
+
         s1_target = s1_out
         s2_target = s2_out
         snr_db = np.random.uniform(*self.cfg.snr_low_db_range)  # SNR of weaker signal
