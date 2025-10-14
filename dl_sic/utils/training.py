@@ -1,3 +1,4 @@
+import os
 import random
 import numpy as np
 import torch
@@ -127,3 +128,30 @@ class TrainingLogger:
         if self.log_data["epochs"]:
             return self.log_data["epochs"][-1]
         return -1
+
+
+def create_checkpoint_dir(base_checkpoints_dir: str, args) -> str:
+    Path(base_checkpoints_dir).mkdir(parents=True, exist_ok=True)
+    dtype_map = {
+        "complex64": "c64",
+        "float32": "f32",
+        "float16": "f16",
+        "bfloat16": "bf16",
+    }
+    dtype_suffix = dtype_map.get(args.dtype, args.dtype)
+    exp_name_parts = [
+        args.model_type,
+        dtype_suffix,
+        f"M{args.model_param_M}",
+        f"N{args.model_param_N}",
+        f"U{args.model_param_U}",
+        f"V{args.model_param_V}",
+        f"target{args.target}",
+    ]
+
+    exp_name = "_".join(exp_name_parts)
+    exp_dir = os.path.join(base_checkpoints_dir, exp_name)
+    os.makedirs(exp_dir, exist_ok=True)
+    print(f"Checkpoint directory created: {exp_dir}")
+
+    return exp_dir

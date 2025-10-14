@@ -16,7 +16,7 @@ cd ${SLURM_SUBMIT_DIR}
 
 module purge
 
-# Set your conda environment
+# Set Conda environment
 source /home/$USER/.bashrc
 # PyTorch environment should be created previously
 source activate pt_env

@@ -8,8 +8,9 @@ from tqdm import tqdm
 
 from model.complex_tdcr_net import ComplexTDCRnet
 from model.real_tdcr_net import RealTDCRnet
-from utils.training import set_seed, TrainingLogger
+from utils.training import set_seed, TrainingLogger, create_checkpoint_dir
 from utils.dataset import DummyDataset, LoadDataset, create_dataloaders
+
 from utils.loss_functions import si_snr_loss_complex
 from data.generator import SignalDatasetGenerator, SimulationConfig
 
@@ -355,6 +356,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    checkpoints_dir = create_checkpoint_dir(args.checkpoints_dir, args)
+
     dataset = LoadDataset(
         target_idx=args.target,
         runtime_generation=args.runtime_gen,
@@ -387,5 +390,5 @@ if __name__ == "__main__":
         model_param_N=args.model_param_N,
         model_param_U=args.model_param_U,
         model_param_V=args.model_param_V,
-        checkpoints_dir=args.checkpoints_dir,
+        checkpoints_dir=checkpoints_dir,
     )

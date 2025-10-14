@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=train_complex_f32    # Job name equals shell file name
+#SBATCH --job-name=train_tdcr    # Job name equals shell file name
 #SBATCH --cpus-per-gpu=1         # Dataloader num_workers + 1 (>1 if multi-threaded tasks)
 #SBATCH --partition=gpu          # Name of the partition
 #SBATCH --gres=gpu:1             # Number and type of GPU cards and type allocated
@@ -16,7 +16,7 @@ cd ${SLURM_SUBMIT_DIR}
 
 module purge
 
-# Set your conda environment
+# Set Conda environment
 source /home/$USER/.bashrc
 # PyTorch environment should be created previously
 source activate pt_env
@@ -25,7 +25,7 @@ python train.py \
     --model_type "complex" \
     --dtype "float32" \
     --batch_size 1 \
-    --epochs 50 \
+    --epochs 100 \
     --learning_rate 1e-3 \
     --weight_decay 0 \
     --val_split 0.2 \
@@ -35,6 +35,6 @@ python train.py \
     --model_param_N 32 \
     --model_param_U 128 \
     --model_param_V 8 \
-    --checkpoints_dir "./checkpoints/complex_f32" \
+    --checkpoints_dir "./checkpoints" \
     --dataset_path "./data/simulated_dataset.pt" \
     --runtime_gen
