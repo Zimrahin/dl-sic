@@ -37,6 +37,7 @@ class SimulationConfig:
     fading_pdp_max_size: int = 3  # Maximum fading paths
     fading_pdp_delay_range: tuple[float, float] = (0.0, 2.0)
     fading_pdp_power_range: tuple[float, float] = (0.99, 0.1)
+    adc_bits_range: tuple[int, int] | None = None  # Clipping and quantisation
     seed: int | None = None
 
 
@@ -147,6 +148,19 @@ class SignalDatasetGenerator:
 
         return signal
 
+    def _adc_quantise(self, iq: np.ndarray, bits: int, vmax: float = 1.0) -> np.ndarray:
+        """Simulate a linear symmetric ADC"""
+        levels = 2**bits - 1  # Odd number of levels
+        step = 2 * vmax / (levels - 1)
+
+        # Clip and quantise
+        if np.iscomplexobj(iq):
+            real_q = step * np.round(np.clip(iq.real, -vmax, vmax) / step)
+            imag_q = step * np.round(np.clip(iq.imag, -vmax, vmax) / step)
+            return real_q + 1j * imag_q
+        else:
+            return step * np.round(np.clip(iq, -vmax, vmax) / step)
+
     def generate_mixture(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Generate a mixture of two signals with impairments and noise"""
         # Generate base signals (size = signal_length)
@@ -174,6 +188,11 @@ class SignalDatasetGenerator:
 
         # Apply IQ imbalance at receiver
         mixture = self._apply_iq_imbalance(mixture, tx_mode=False)
+        if self.cfg.adc_bits_range is not None:
+            # Apply ADC quantisation
+            mixture = self._adc_quantise(
+                mixture, bits=np.random.randint(*self.cfg.adc_bits_range)
+            )
 
         return (
             mixture.astype(np.complex64),  # NN Input
