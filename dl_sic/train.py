@@ -355,7 +355,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Loads all the dataset in RAM. Must change later (this is what DataLoaders are used for)
     dataset = LoadDataset(
         target_idx=args.target,
         runtime_generation=args.runtime_gen,

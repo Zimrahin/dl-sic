@@ -8,6 +8,7 @@ from model.complex_tdcr_net import ComplexTDCRnet
 from model.real_tdcr_net import RealTDCRnet
 from utils.dataset import LoadDataset
 from utils.loss_functions import si_snr_loss_complex
+from data.generator import SignalDatasetGenerator, SimulationConfig
 
 
 def plot_test_signals(
@@ -171,6 +172,11 @@ if __name__ == "__main__":
         default=8,
         help="Dilated convolutions on each side of the LSTM",
     )
+    parser.add_argument(
+        "--runtime_gen",
+        action="store_true",
+        help="Generate data on the fly instead of loading from file",
+    )
     args = parser.parse_args()
 
     dtype_map: dict = {
@@ -184,9 +190,12 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    if not os.path.exists(args.dataset_path):
-        raise FileNotFoundError(f"Dataset not found at {args.dataset_path}")
-    dataset = LoadDataset(args.dataset_path, target_idx=args.target)
+    dataset = LoadDataset(
+        target_idx=args.target,
+        runtime_generation=args.runtime_gen,
+        generator_class=SignalDatasetGenerator(SimulationConfig()),
+        dataset_path=args.dataset_path,
+    )
     print(f"Loaded dataset with {len(dataset)} examples")
 
     M, N, U, V = (
