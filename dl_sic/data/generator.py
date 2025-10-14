@@ -21,7 +21,7 @@ from .simulation.channel import (
 @dataclass
 class SimulationConfig:
     sample_rate: float = 4e6
-    num_signals: int = 4000
+    num_signals: int = 2000
     signal_length: int = 12000  # Samples
     ble_payload_size_range: tuple[int, int] = (2, 256)  # Max exclusive
     ieee802154_payload_size_range: tuple[int, int] = (2, 126)  # Max exclusive
