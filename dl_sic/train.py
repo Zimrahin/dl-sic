@@ -11,7 +11,7 @@ from model.real_tdcr_net import RealTDCRnet
 from utils.training import set_seed, TrainingLogger
 from utils.dataset import DummyDataset, LoadDataset, create_dataloaders
 from utils.loss_functions import si_snr_loss_complex
-from data.data_generator import SignalDatasetGenerator, SimulationConfig
+from data.generator import SignalDatasetGenerator, SimulationConfig
 
 
 def train_epoch(

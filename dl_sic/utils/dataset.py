@@ -1,5 +1,5 @@
 import torch
-from data.data_generator import SignalDatasetGenerator
+from data.generator import SignalDatasetGenerator
 
 
 class DummyDataset(torch.utils.data.Dataset):

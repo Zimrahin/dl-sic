@@ -1,6 +1,13 @@
-import numpy as np
+import os
+import sys
 import torch
+import numpy as np
+import argparse
+import matplotlib.pyplot as plt
+
 from dataclasses import dataclass
+from tqdm import tqdm
+
 from .simulation.transmitter import TransmitterBLE, Transmitter802154
 from .simulation.channel import (
     frequency_selective_fading,
@@ -9,12 +16,6 @@ from .simulation.channel import (
     iq_imbalance,
     multiply_by_complex_exponential,
 )
-
-import argparse
-import matplotlib.pyplot as plt
-import os
-import sys
-from tqdm import tqdm
 
 
 @dataclass
