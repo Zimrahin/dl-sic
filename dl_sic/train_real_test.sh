@@ -21,7 +21,7 @@ source /home/$USER/.bashrc
 # PyTorch environment should be created previously
 source activate pt_env
 
-python train.py \
+python -u train.py \
     --model_type "real" \
     --dtype "float32" \
     --batch_size 1 \
