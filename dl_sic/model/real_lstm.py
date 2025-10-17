@@ -41,9 +41,10 @@ class RealLSTM(nn.Module):
         Input shape: (batch, input_size, T)
         Output shape: (batch, hidden_size, T)
         """
-        x = x.transpose(-1, -2)  # (batch, T, input_size)
+        x = x.transpose(1, 2)  # (batch, T, input_size)
+        print(x.shape)
         out_lstm, _ = self.lstm(x)  # (batch, T, hidden_size)
-        out_lstm = out_lstm.transpose(-1, -2)  # (batch, hidden_size, T)
+        out_lstm = out_lstm.transpose(1, 2)  # (batch, hidden_size, T)
 
         return out_lstm
 

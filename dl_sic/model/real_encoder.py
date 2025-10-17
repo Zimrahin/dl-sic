@@ -45,9 +45,9 @@ class RealEncoder(nn.Module):
         """
         z = self.conv_in(x)  # (batch, mid_channels, T)
 
-        z_ln = z.transpose(-1, -2)  # (batch, T, mid_channels)
+        z_ln = z.transpose(1, 2)  # (batch, T, mid_channels)
         z_ln = self.layer_norm(z_ln)
-        z_ln = z_ln.transpose(-1, -2)  # (batch, mid_channels, T)
+        z_ln = z_ln.transpose(1, 2)  # (batch, mid_channels, T)
 
         y = self.conv_out(z_ln)  # (batch, out_channels, T)
 
