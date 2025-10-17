@@ -93,25 +93,25 @@ class ComplexTDCRNet(nn.Module):
         - Real: (batch, 2, T)
         Output: Same shape and type as input
         """
-        if x.dim() != 3:
-            raise ValueError(
-                f"Expected 3D input (batch, channels, T), got {tuple(x.shape)}D"
-            )
+        assert (
+            x.dim() == 3
+        ), f"Expected 3D input (batch, channels, T), got {tuple(x.shape)}D"
+
         input_is_complex = torch.is_complex(x)
 
         if input_is_complex:
             # Complex input: (batch, 1, T)
-            if x.size(1) != 1:
-                raise ValueError(
-                    f"Expected 1 complex channel, got {x.size(1)} channels"
-                )
+            assert (
+                x.size(1) == 1
+            ), f"Expected 1 complex channel, got {x.size(1)} channels"
+
             # If network uses real parameters but got complex input, convert to real representation
             if not self.dtype_is_complex:
                 x = torch.stack([x.real, x.imag], dim=0)  # (2, batch, 1, T)
         else:
             # Real input: (batch, 2, T)
-            if x.size(1) != 2:
-                raise ValueError(f"Expected 2 real channels, got {x.size(1)} channels")
+            assert x.size(1) == 2, f"Expected 2 real channels, got {x.size(1)} channels"
+
             # Convert from (batch, 2, T) to (2, batch, 1, T) (complex modules expect this shape)
             x = x.transpose(0, 1).unsqueeze(2)  # (2, batch, 1, T)
 

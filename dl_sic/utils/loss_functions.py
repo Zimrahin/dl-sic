@@ -22,10 +22,17 @@ def si_snr_loss_complex(
 ) -> torch.Tensor:
     """Scale-invariant signal-to-noise ratio (SI-SNR) loss function"""
     # Reference: github.com/JusperLee/Conv-TasNet/blob/master/Conv_TasNet_Pytorch/SI_SNR.py
-    if pred.shape != target.shape:
-        raise RuntimeError(
-            f"Dimention mismatch while computing SI-SNR, {pred.shape} vs {target.shape}"
-        )
+    assert (
+        pred.shape == target.shape
+    ), f"Dimension mismatch while computing SI-SNR, {pred.shape} vs {target.shape}"
+
+    # Handle real inputs
+    if not torch.is_complex(pred):
+        assert pred.size(1) == 2, f"Unexpected pred shape: {pred.shape}"
+        assert target.size(1) == 2, f"Unexpected target shape: {target.shape}"
+        pred = torch.complex(pred[:, 0, :], pred[:, 1, :]).unsqueeze(1)
+        target = torch.complex(target[:, 0, :], target[:, 1, :]).unsqueeze(1)
+
     if zero_mean:
         pred = pred - torch.mean(pred, dim=-1, keepdim=True)  # _s
         target = target - torch.mean(target, dim=-1, keepdim=True)  # s

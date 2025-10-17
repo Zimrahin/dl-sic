@@ -3,10 +3,28 @@ from data.generator import SignalDatasetGenerator
 
 
 class DummyDataset(torch.utils.data.Dataset):
-    def __init__(self, num_signals: int, signal_length: int = 1024, seed: int = 0):
+    def __init__(
+        self,
+        num_signals: int,
+        signal_length: int = 1024,
+        seed: int = 0,
+        return_real: bool = False,
+    ):
         torch.manual_seed(seed)
-        self.mixture = torch.randn(num_signals, 1, signal_length, dtype=torch.complex64)
-        self.target = torch.randn(num_signals, 1, signal_length, dtype=torch.complex64)
+        if return_real:
+            self.mixture = torch.randn(
+                num_signals, 2, signal_length, dtype=torch.float32
+            )
+            self.target = torch.randn(
+                num_signals, 2, signal_length, dtype=torch.float32
+            )
+        else:
+            self.mixture = torch.randn(
+                num_signals, 1, signal_length, dtype=torch.complex64
+            )
+            self.target = torch.randn(
+                num_signals, 1, signal_length, dtype=torch.complex64
+            )
 
     def __len__(self):
         return self.mixture.shape[0]
@@ -63,38 +81,39 @@ class LoadDataset(torch.utils.data.Dataset):
         runtime_generation: bool = True,  # Generate data on the fly
         generator_class: SignalDatasetGenerator | None = None,
         dataset_path: str | None = None,
+        return_real: bool = False,
     ):
         self.target_idx = target_idx
         self.runtime_generation = runtime_generation
         self.generator_class = generator_class
+        self.return_real = return_real
 
         if runtime_generation:
-            if generator_class is None:
-                raise ValueError(
-                    "For runtime generation, generator_class must be provided."
-                )
+            assert (
+                generator_class is not None
+            ), "For runtime generation, generator_class must be provided."
+
             # Signals per epoch for runtime generation
             self.num_signals = generator_class.cfg.num_signals
             return
 
         # Load dataset otherwise
-        if dataset_path is None:
-            raise ValueError(
-                "For loading pregenerated data, dataset_path must be provided."
-            )
+        assert (
+            dataset_path is not None
+        ), "For loading pregenerated data, dataset_path must be provided."
+
         dataset = torch.load(dataset_path, weights_only=False)
         all_tensors = dataset.tensors
 
         # Assume index 0 is the mixture, the rest are targets
-        if target_idx < 1 or target_idx >= len(all_tensors):
-            raise ValueError(f"Target index must be between 1 and {len(all_tensors)-1}")
+        assert (
+            1 <= target_idx < len(all_tensors)
+        ), f"Target index must be between 1 and {len(all_tensors)-1}"
+
         self.mixtures = all_tensors[0]
         self.target_tensor = all_tensors[target_idx]
 
         self.num_signals = len(self.mixtures)
-
-        del all_tensors
-        del dataset
 
     def __len__(self):
         return self.num_signals
@@ -109,5 +128,9 @@ class LoadDataset(torch.utils.data.Dataset):
 
             mixture = torch.from_numpy(mixture).unsqueeze(0)
             target = torch.from_numpy(target).unsqueeze(0)
+
+        if self.return_real:
+            mixture = torch.stack([mixture.real, mixture.imag], dim=1).squeeze(0)
+            target = torch.stack([target.real, target.imag], dim=1).squeeze(0)
 
         return mixture, target

@@ -363,8 +363,13 @@ if __name__ == "__main__":
         runtime_generation=args.runtime_gen,
         generator_class=SignalDatasetGenerator(SimulationConfig()),
         dataset_path=args.dataset_path,
+        return_real=(args.dtype not in ("complex32", "complex64", "complex128")),
     )
-    # dataset = DummyDataset(num_signals=10, signal_length=1024)
+    # dataset = DummyDataset(
+    #     num_signals=10,
+    #     signal_length=1024,
+    #     return_real=(args.dtype not in ("complex32", "complex64", "complex128")),
+    # )
 
     dtype_map: dict = {
         "complex64": torch.complex64,

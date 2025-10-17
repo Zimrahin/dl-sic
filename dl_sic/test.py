@@ -195,6 +195,7 @@ if __name__ == "__main__":
         runtime_generation=args.runtime_gen,
         generator_class=SignalDatasetGenerator(SimulationConfig()),
         dataset_path=args.dataset_path,
+        return_real=(args.dtype not in ("complex32", "complex64", "complex128")),
     )
     print(f"Loaded dataset with {len(dataset)} examples")
 
