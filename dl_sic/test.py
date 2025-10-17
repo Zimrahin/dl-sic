@@ -4,8 +4,8 @@ import torch
 import matplotlib.pyplot as plt
 import numpy as np
 
-from model.complex_tdcr_net import ComplexTDCRnet
-from model.real_tdcr_net import RealTDCRnet
+from model.complex_tdcr_net import ComplexTDCRNet
+from model.real_tdcr_net import RealTDCRNet
 from utils.dataset import LoadDataset
 from utils.loss_functions import si_snr_loss_complex
 from data.generator import SignalDatasetGenerator, SimulationConfig
@@ -207,12 +207,12 @@ if __name__ == "__main__":
 
     # Initialise model
     if args.model_type == "complex":
-        model = ComplexTDCRnet(M, N, U, V, dtype=dtype).to(device)
+        model = ComplexTDCRNet(M, N, U, V, dtype=dtype).to(device)
         print("Using complex model (complex arithmetic)")
     else:
         if dtype in (torch.complex32, torch.complex64, torch.complex128):
             raise ValueError(f"Real model cannot use complex dtype {dtype}")
-        model = RealTDCRnet(M, N, U, V, dtype=dtype).to(device)
+        model = RealTDCRNet(M, N, U, V, dtype=dtype).to(device)
         print("Using real model (independent real/imag channels)")
     total_params = sum(p.numel() for p in model.parameters())
     total_memory = sum(p.element_size() * p.nelement() for p in model.parameters())

@@ -7,7 +7,7 @@ from .real_lstm import RealLSTM
 from .real_decoder import RealDecoder
 
 
-class RealTDCRnet(nn.Module):
+class RealTDCRNet(nn.Module):
     """
     Real Time-Domain Dilated Convolutional Recurrent Network
     Treats real/imaginary as independent channels
@@ -144,7 +144,7 @@ def test_model():
     for dtype in dtypes:
         print(f"Testing dtype: {dtype}")
 
-        model = RealTDCRnet(dtype=dtype, N=64)
+        model = RealTDCRNet(dtype=dtype, N=64)
 
         total_params = sum(p.numel() for p in model.parameters())
         total_memory = sum(p.element_size() * p.nelement() for p in model.parameters())

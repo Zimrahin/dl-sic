@@ -6,8 +6,8 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 
-from model.complex_tdcr_net import ComplexTDCRnet
-from model.real_tdcr_net import RealTDCRnet
+from model.complex_tdcr_net import ComplexTDCRNet
+from model.real_tdcr_net import RealTDCRNet
 from utils.training import set_seed, TrainingLogger, create_checkpoint_dir
 from utils.dataset import DummyDataset, LoadDataset, create_dataloaders
 
@@ -141,12 +141,12 @@ def train_tdcr_net(
 
     # Initialise model, dataloaders, loss function, and optimiser
     if model_type == "complex":
-        model = ComplexTDCRnet(M, N, U, V, dtype=dtype).to(device)
+        model = ComplexTDCRNet(M, N, U, V, dtype=dtype).to(device)
         print("Using complex model (complex arithmetic)")
     else:
         if dtype in (torch.complex32, torch.complex64, torch.complex128):
             raise ValueError(f"Real model cannot use complex dtype {dtype}")
-        model = RealTDCRnet(M, N, U, V, dtype=dtype).to(device)
+        model = RealTDCRNet(M, N, U, V, dtype=dtype).to(device)
         print("Using real model (independent real/imag channels)")
 
     total_params = sum(p.numel() for p in model.parameters())
