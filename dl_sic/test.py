@@ -21,11 +21,20 @@ def plot_test_signals(
     """Plot mixture, target and output"""
     _, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True, figsize=(8, 6))
 
+    def to_complex(x: torch.Tensor) -> torch.Tensor:
+        if not x.is_complex():
+            assert (
+                x.dim() == 2
+            ), f"Expected 2D input (channels, T), got {tuple(x.shape)}"
+            assert x.size(0) == 2, f"Expected 2 real channels, got {x.size(1)} channels"
+            return torch.complex(x[0, :], x[1, :])
+        return x
+
     # Convert to numpy if they're tensors
     if torch.is_tensor(mixture):
-        mixture = mixture.cpu().numpy()
-        target = target.cpu().numpy()
-        output = output.cpu().numpy()
+        mixture = to_complex(mixture.cpu()).numpy()
+        target = to_complex(target.cpu()).numpy()
+        output = to_complex(output.cpu()).numpy()
 
     sample_axis = np.arange(len(mixture))
 
