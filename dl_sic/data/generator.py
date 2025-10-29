@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 from dataclasses import dataclass
 from tqdm import tqdm
 
-from .simulation.transmitter import TransmitterBLE, Transmitter802154
-from .simulation.channel import (
+from .tranceiver.transmitter import TransmitterBLE, Transmitter802154
+from .tranceiver.channel import (
     frequency_selective_fading,
     add_white_gaussian_noise,
     fractional_delay_fir_filter,

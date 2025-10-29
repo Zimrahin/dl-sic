@@ -124,7 +124,7 @@ def test_model(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="CTDCR Network Test")
+    parser = argparse.ArgumentParser(description="TDCR Network Test")
     parser.add_argument(
         "--model_type",
         type=str,
@@ -135,7 +135,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dtype",
         type=str,
-        choices=["complex64", "float32", "float16", "bfloat16"],
+        choices=["complex64", "float32"],
         default="complex64",
         help="Data type for model parameters and operations",
     )
