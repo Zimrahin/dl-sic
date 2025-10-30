@@ -38,7 +38,8 @@ class SimulationConfig:
     fading_pdp_delay_range: tuple[float, float] = (0.0, 4.0)
     fading_pdp_power_range: tuple[float, float] = (0.99, 0.1)
     adc_bits_range: tuple[int, int] | None = (8, 16)  # Clipping and quantisation
-    seed: int | None = None
+    fading_channel: bool = False  # Overrides fading options above
+    seed: int | None = 10
 
 
 class SignalDatasetGenerator:
@@ -175,11 +176,12 @@ class SignalDatasetGenerator:
         amplitude2 = np.random.uniform(*self.cfg.amplitude_range)
 
         # Apply fading channel + AWGN
-        s1_out = self._apply_fading_channel(s1_out)
-        s2_out = self._apply_fading_channel(s2_out)
+        if self.cfg.fading_channel:
+            s1_out = self._apply_fading_channel(s1_out)
+            s2_out = self._apply_fading_channel(s2_out)
+            s1_out /= np.max(np.abs(s1_out)) + 1e-12  # Normalise to avoid clipping
+            s2_out /= np.max(np.abs(s2_out)) + 1e-12
 
-        s1_out /= np.max(np.abs(s1_out)) + 1e-12  # Normalise to avoid clipping
-        s2_out /= np.max(np.abs(s2_out)) + 1e-12
         s1_out = amplitude1 * s1_out
         s2_out = amplitude2 * s2_out
 
