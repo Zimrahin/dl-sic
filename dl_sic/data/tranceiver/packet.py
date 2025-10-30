@@ -208,3 +208,175 @@ def split_iq_chips(uint32_chips: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         index += 16  # Increase return index for each value in uint32_array
 
     return I_chips, Q_chips
+
+
+def correlate_access_code(
+    data: np.ndarray, access_code: str, threshold: int, reduce_mask: bool = False
+) -> np.ndarray:
+    """Find a sequence of bits in a given binary dara array."""
+    # access_code: from LSB to MSB (as samples arrive on-air)
+    access_code = access_code.replace("_", "")
+    code_len = len(access_code)
+    access_int = int(
+        access_code, 2
+    )  # Convert the access code (e.g. "10110010") to an integer
+    mask = (1 << code_len) - 1  # Create a mask to keep only the last code_len bits.
+    if reduce_mask:
+        # Create a mask that has ones everywhere except at the MSB and LSB:
+        # This is useful for differential encoding in chip sequences for IEEE 802.15.4 demodulation
+        reduced_mask = mask & ~((1 << (code_len - 1)) | 1)
+    else:
+        reduced_mask = mask
+    data_reg = 0
+    positions = []  # Positions where the access code has been found in data
+
+    for i, bit in enumerate(data):
+        bit = int(bit)
+        data_reg = ((data_reg << 1) | (bit & 0x1)) & mask  # Shift in the new bit
+        if i + 1 < code_len:  # Start comparing once data_reg is filled
+            continue
+
+        # Count the number of mismatched bits between data_reg and the access code
+        mismatches = bin((data_reg ^ access_int) & reduced_mask).count("1")
+        if mismatches <= threshold:
+            # Report the position immediately after the access code was found
+            positions.append(i + 1)
+
+    return np.array(positions)
+
+
+def pack_bits_to_uint8(bits: np.ndarray) -> np.ndarray:
+    """Pack a sequence of bits (array) into an array of bytes (integers)."""
+    # Pack binary array LSB first ([1,1,1,1,0,0,0,0]) into bytes array ([0x0F])
+    # Ensure the binary array length is a multiple of 8
+    if len(bits) % 8 != 0:
+        raise ValueError(f"The binary list {len(bits)} length must be a multiple of 8.")
+
+    # Convert binary to NumPy array
+    bits = np.array(bits, dtype=np.uint8)
+    bits = bits.reshape(-1, 8)[:, ::-1]  #  LSB to MSB correction
+    uint8_array = np.packbits(bits, axis=1).flatten()
+
+    return uint8_array
+
+
+def pack_chips_to_bytes(
+    chips: np.ndarray, num_bytes: int, chip_mapping: np.ndarray, threshold: int
+) -> np.ndarray:
+    """Pack chips into bytes. Assumes each byte is formed from 64 chips (32 per nibble)."""
+    bytes_out = np.empty(num_bytes, dtype=np.uint8)
+
+    for i in range(num_bytes):
+        # Convert 32 chips into an integer
+        nibble1 = chips_to_int(chips[i * 64 : i * 64 + 32])
+        nibble2 = chips_to_int(chips[i * 64 + 32 : (i + 1) * 64])
+
+        # Decode the nibbles
+        nibble1 = decode_chips(nibble1, chip_mapping=chip_mapping, threshold=threshold)
+        nibble2 = decode_chips(nibble2, chip_mapping=chip_mapping, threshold=threshold)
+
+        # Pack into a byte
+        bytes_out[i] = nibble1 | (nibble2 << 4)
+
+    return bytes_out
+
+
+def chips_to_int(chips: np.ndarray) -> int:
+    """Convert a 32-length binary array to an integer."""
+    assert len(chips) == 32, "Input must be exactly 32 elements long"
+    return int("".join(map(str, chips)), 2)
+
+
+def decode_chips(chips32: int, chip_mapping: np.ndarray, threshold: int = 32) -> int:
+    """Decodes the received chip sequence by comparing it against a known mapping."""
+    best_match = 0xFF
+    min_threshold = 33  # Value greater than the maximum possible errors (32 bits)
+
+    for i in range(16):
+        # 0x7FFFFFFE masks out the first and last bit, since these depend on previous chip data
+        # This is because we are using differential encoding
+        masked_diff = (chips32 ^ chip_mapping[i]) & 0x7FFFFFFE
+        diff_bits = count_set_bits(
+            masked_diff, 32
+        )  # Count the number of bits that differ
+
+        if diff_bits < min_threshold:
+            best_match = i
+            min_threshold = diff_bits
+
+    if min_threshold <= threshold:
+        return best_match & 0xF  # Return position in chip mapping
+
+    return 0xFF  # If no valid match was found, return 0xFF to indicate an error
+
+
+def count_set_bits(n: int, bits: int = 32) -> int:
+    """Return the number of set bits in the lowest 'bits' of 'n'."""
+    mask = (1 << bits) - 1  # Create a mask for the lowest 'bits' bits
+    return bin(n & mask).count("1")
+
+
+def pack_chips_to_bytes(
+    chips: np.ndarray, num_bytes: int, chip_mapping: np.ndarray, threshold: int
+) -> np.ndarray:
+    """Pack chips into bytes. Assumes each byte is formed from 64 chips (32 per nibble)."""
+    bytes_out = np.empty(num_bytes, dtype=np.uint8)
+
+    for i in range(num_bytes):
+        # Convert 32 chips into an integer
+        nibble1 = chips_to_int(chips[i * 64 : i * 64 + 32])
+        nibble2 = chips_to_int(chips[i * 64 + 32 : (i + 1) * 64])
+
+        # Decode the nibbles
+        nibble1 = decode_chips(nibble1, chip_mapping=chip_mapping, threshold=threshold)
+        nibble2 = decode_chips(nibble2, chip_mapping=chip_mapping, threshold=threshold)
+
+        # Pack into a byte
+        bytes_out[i] = nibble1 | (nibble2 << 4)
+
+    return bytes_out
+
+
+def preamble_detection_802154(
+    chip_samples: np.ndarray,
+    threshold: int,
+    chip_mapping: np.ndarray,
+    pattern: np.ndarray = np.array([0x00, 0x00, 0x00, 0x00, 0xA7]),
+) -> np.ndarray:
+    """
+    Searches for an IEEE 802.15.4 preamble in `chip_samples`.
+    It first looks for 0x00 chip mappings as an a priori estimation, and then from each match,
+    it searches for the rest of the preamble.
+    """
+    if len(pattern) == 0:
+        return np.array([])  # No pattern means no detection
+
+    # Detect potential preamble positions by searching for the first byte of the pattern
+    access_code = map_nibbles_to_chips([pattern[0]], chip_mapping)
+    preamble_positions = correlate_access_code(
+        chip_samples, access_code, threshold=threshold, reduce_mask=True
+    )
+
+    if len(pattern) == 1:
+        return np.array(preamble_positions)
+
+    preamble_positions_final = []
+
+    # Verify the remaining bytes of the pattern
+    for position in preamble_positions:
+        for byte in pattern[1:]:
+            next_byte = pack_chips_to_bytes(
+                chip_samples[position : position + 64],
+                num_bytes=1,
+                chip_mapping=chip_mapping,
+                threshold=threshold,
+            )
+            if next_byte == byte:
+                position += 64  # Move to the next byte position
+            else:
+                break
+        else:
+            # All iterations passed
+            preamble_positions_final.append(position)
+
+    return np.array(preamble_positions_final)

@@ -9,6 +9,7 @@ from model.real_tdcr_net import RealTDCRNet
 from utils.dataset import LoadDataset
 from utils.loss_functions import si_snr_loss_complex
 from data.generator import SignalDatasetGenerator, SimulationConfig
+from data.tranceiver.receiver import ReceiverBLE, Receiver802154, Receiver
 
 
 def to_complex(x: torch.Tensor) -> torch.Tensor:
@@ -26,46 +27,64 @@ def plot_test_signals(
     output: torch.Tensor,
     index: int,
     loss_val: float,
+    *,
+    mixture_crc: str = "",
+    target_crc: str = "",
+    output_crc: str = "",
 ) -> None:
     """Plot mixture, target and output"""
     _, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True, figsize=(8, 6))
 
-
-
     sample_axis = np.arange(len(mixture))
 
     # Plot mixture
+    mixture_title = f"Input Mixture (Index {index})"
+    if mixture_crc:
+        mixture_title += f", CRC: {mixture_crc}"
     ax1.plot(sample_axis, np.real(mixture), alpha=0.7, label="Real")
     ax1.plot(sample_axis, np.imag(mixture), alpha=0.7, label="Imag")
     ax1.set_ylabel("Amplitude")
-    ax1.set_title(f"Input Mixture (Index {index})")
+    ax1.set_title(mixture_title)
     ax1.legend()
     ax1.grid(True)
 
     # Plot target
+    target_title = "Target Signal"
+    if target_crc:
+        target_title += f", CRC: {target_crc}"
     ax2.plot(sample_axis, np.real(target), alpha=0.7, label="Real")
     ax2.plot(sample_axis, np.imag(target), alpha=0.7, label="Imag")
     ax2.set_ylabel("Amplitude")
-    ax2.set_title("Target Signal")
+    ax2.set_title(target_title)
     ax2.legend()
     ax2.grid(True)
 
     # Plot output
+    output_title = f"Model Output (Loss: {loss_val:.6f} dB)"
+    if output_crc:
+        output_title += f", CRC: {output_crc}"
     ax3.plot(sample_axis, np.real(output), alpha=0.7, label="Real")
     ax3.plot(sample_axis, np.imag(output), alpha=0.7, label="Imag")
     ax3.set_ylabel("Amplitude")
-    ax3.set_title(f"Model Output (Loss: {loss_val:.6f} dB)")
+    ax3.set_title(output_title)
     ax3.set_xlabel("Sample Index")
     ax3.legend()
     ax3.grid(True)
 
-    # max_all = np.max(np.abs(np.concatenate([mixture, target, output])))
-    # ax1.set_ylim(-max_all - 0.1, max_all + 0.1)
-    # ax2.set_ylim(-max_all - 0.1, max_all + 0.1)
-    # ax3.set_ylim(-max_all - 0.1, max_all + 0.1)
-
     plt.tight_layout()
     plt.show()
+
+
+def check_crc(signal: np.ndarray, receiver: Receiver) -> str:
+    """Check CRC for a given signal using the receiver"""
+    try:
+        packets = receiver.demodulate_to_packet(signal)
+        if packets and len(packets) > 0:
+            return "PASS" if packets[0]["crc_check"] else "FAIL"
+        else:
+            return "NO PACKET"
+    except Exception as e:
+        return f"ERROR: {str(e)}"
 
 
 def test_model(
@@ -73,9 +92,22 @@ def test_model(
     dataset: torch.utils.data.Dataset,
     device: torch.device,
     loss_function: callable,
+    *,
+    demodulate: bool = False,
+    sample_rate: float = 4e6,
+    target_idx: int = 1,  # (1 for BLE, 2 for IEEE 802.15.4)
 ) -> None:
     """Interactive model testing loop"""
     model.eval()
+
+    receiver = None
+    if demodulate:
+        if target_idx == 1:
+            receiver = ReceiverBLE(sample_rate, transmission_rate=1e6)
+        elif target_idx == 2:
+            receiver = Receiver802154(sample_rate, transmission_rate=2e6)
+        else:
+            raise ValueError("Invalid target_idx for CRC checking")
 
     while True:
         try:
@@ -105,15 +137,32 @@ def test_model(
 
             print(f"\nIndex {idx}:")
             print(f"Loss: {loss.item():.6f}")
+
             mixture_np = to_complex(mixture.squeeze().cpu()).numpy()
             target_np = to_complex(target.squeeze().cpu()).numpy()
             output_np = to_complex(output.squeeze().cpu()).numpy()
+
+            mixture_crc = None
+            target_crc = None
+            output_crc = None
+            if demodulate and receiver is not None:
+                mixture_crc = check_crc(mixture_np, receiver)
+                target_crc = check_crc(target_np, receiver)
+                output_crc = check_crc(output_np, receiver)
+
+                print(f"Mixture CRC: {mixture_crc}")
+                print(f"Target CRC: {target_crc}")
+                print(f"Output CRC: {output_crc}")
+
             plot_test_signals(
                 mixture_np,
                 target_np,
                 output_np,
                 idx,
                 loss.item(),
+                mixture_crc=mixture_crc,
+                target_crc=target_crc,
+                output_crc=output_crc,
             )
 
         except ValueError:
@@ -185,6 +234,17 @@ if __name__ == "__main__":
         action="store_true",
         help="Generate data on the fly instead of loading from file",
     )
+    parser.add_argument(
+        "--demodulate",
+        action="store_true",
+        help="Demodulate and check CRC of each signal",
+    )
+    parser.add_argument(
+        "--sample_rate",
+        type=float,
+        default=4e6,
+        help="Sample rate for receiver demodulation",
+    )
     args = parser.parse_args()
 
     dtype_map: dict = {
@@ -249,4 +309,7 @@ if __name__ == "__main__":
         dataset=dataset,
         device=device,
         loss_function=si_snr_loss_complex,
+        demodulate=args.demodulate,
+        sample_rate=args.sample_rate,
+        target_idx=args.target,
     )
