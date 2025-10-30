@@ -39,6 +39,7 @@ class SimulationConfig:
     fading_pdp_power_range: tuple[float, float] = (0.99, 0.1)
     adc_bits_range: tuple[int, int] | None = (8, 16)  # Clipping and quantisation
     fading_channel: bool = False  # Overrides fading options above
+    ble_address: int | None = 0x12345678  # If None, random each time
     seed: int | None = 10
 
 
@@ -59,7 +60,11 @@ class SignalDatasetGenerator:
                 size=np.random.randint(*self.cfg.ble_payload_size_range),
                 dtype=np.uint8,
             )
-            base_address = np.random.randint(0, 2**32, dtype=np.uint32)
+            base_address = (
+                np.random.randint(0, 2**32, dtype=np.uint32)
+                if self.cfg.ble_address is None
+                else self.cfg.ble_address
+            )
             modulated_signal = self.ble_tx.modulate_from_payload(payload, base_address)
         else:
             payload = np.random.randint(
