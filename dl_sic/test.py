@@ -11,6 +11,8 @@ from utils.loss_functions import si_snr_loss_complex
 from data.generator import SignalDatasetGenerator, SimulationConfig
 from data.tranceiver.receiver import ReceiverBLE, Receiver802154, Receiver
 
+import time
+
 
 def to_complex(x: torch.Tensor) -> torch.Tensor:
     """Helper to convert real 2-channel tensor to complex tensor"""
@@ -132,10 +134,13 @@ def test_model(
 
             # Forward pass
             with torch.no_grad():
+                start = time.perf_counter()
                 output = model(mixture)
+                end = time.perf_counter()
                 loss = loss_function(output, target)
 
             print(f"\nIndex {idx}:")
+            print("Inference time: {:.2f} ms".format((end - start) * 1e3))
             print(f"Loss: {loss.item():.6f}")
 
             mixture_np = to_complex(mixture.squeeze().cpu()).numpy()
