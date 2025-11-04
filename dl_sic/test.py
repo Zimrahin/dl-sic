@@ -3,6 +3,9 @@ import argparse
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
+import time
+import sys
+from tqdm import tqdm
 
 from model.complex_tdcr_net import ComplexTDCRNet
 from model.real_tdcr_net import RealTDCRNet
@@ -10,8 +13,6 @@ from utils.dataset import LoadDataset
 from utils.loss_functions import si_snr_loss_complex
 from data.generator import SignalDatasetGenerator, SimulationConfig
 from data.tranceiver.receiver import ReceiverBLE, Receiver802154, Receiver
-
-import time
 
 
 def to_complex(x: torch.Tensor) -> torch.Tensor:
@@ -86,10 +87,20 @@ def check_crc(signal: np.ndarray, receiver: Receiver) -> str:
         else:
             return "NO PACKET"
     except Exception as e:
-        return f"ERROR: {str(e)}"
+        return "NO PACKET"
 
 
-def test_model(
+def helper_set_receiver(target_idx: int, sample_rate: float) -> Receiver:
+    """Helper to set up receiver based on target index"""
+    if target_idx == 1:
+        return ReceiverBLE(sample_rate, transmission_rate=1e6)
+    elif target_idx == 2:
+        return Receiver802154(sample_rate, transmission_rate=2e6)
+    else:
+        raise ValueError("Invalid target_idx for CRC checking")
+
+
+def test_model_interactive(
     model: torch.nn.Module,
     dataset: torch.utils.data.Dataset,
     device: torch.device,
@@ -102,14 +113,7 @@ def test_model(
     """Interactive model testing loop"""
     model.eval()
 
-    receiver = None
-    if demodulate:
-        if target_idx == 1:
-            receiver = ReceiverBLE(sample_rate, transmission_rate=1e6)
-        elif target_idx == 2:
-            receiver = Receiver802154(sample_rate, transmission_rate=2e6)
-        else:
-            raise ValueError("Invalid target_idx for CRC checking")
+    receiver = helper_set_receiver(target_idx, sample_rate) if demodulate else None
 
     while True:
         try:
@@ -140,7 +144,7 @@ def test_model(
                 loss = loss_function(output, target)
 
             print(f"\nIndex {idx}:")
-            print("Inference time: {:.2f} ms".format((end - start) * 1e3))
+            print(f"Inference time: {(end - start) * 1e3:.2f} ms")
             print(f"Loss: {loss.item():.6f}")
 
             mixture_np = to_complex(mixture.squeeze().cpu()).numpy()
@@ -150,7 +154,7 @@ def test_model(
             mixture_crc = None
             target_crc = None
             output_crc = None
-            if demodulate and receiver is not None:
+            if demodulate and receiver:
                 mixture_crc = check_crc(mixture_np, receiver)
                 target_crc = check_crc(target_np, receiver)
                 output_crc = check_crc(output_np, receiver)
@@ -174,6 +178,108 @@ def test_model(
             print("Please enter a valid integer, 'r' for random, or 'q' to quit")
         except KeyboardInterrupt:
             break
+
+
+def test_model_statistics(
+    model: torch.nn.Module,
+    dataset: torch.utils.data.Dataset,
+    device: torch.device,
+    loss_function: callable,
+    *,
+    demodulate: bool = False,
+    sample_rate: float = 4e6,
+    target_idx: int = 1,  # (1 for BLE, 2 for IEEE 802.15.4)
+) -> None:
+    """Compute PDR, inference time and loss statistics"""
+    model.eval()
+
+    receiver = helper_set_receiver(target_idx, sample_rate) if demodulate else None
+
+    # Track statistics
+    inference_times = []
+    losses = []
+    crc_counts: dict = {"mixture": [], "target": [], "output": []}
+
+    print(f"Testing on {len(dataset)} packets")
+    for idx in tqdm(
+        range(len(dataset)),
+        total=len(dataset),
+        mininterval=1.0,
+        leave=True,
+        disable=not sys.stdout.isatty(),  # Disable tqdm for Slurm jobs
+    ):
+        # Get data
+        mixture, target = dataset[idx]
+        mixture = mixture.unsqueeze(0).to(device)
+        target = target.unsqueeze(0).to(device)
+
+        # Forward pass
+        with torch.no_grad():
+            start_time = time.perf_counter()
+            output = model(mixture)
+            end_time = time.perf_counter()
+            loss = loss_function(output, target)
+
+        inference_times.append((end_time - start_time) * 1e3)  # ms
+        losses.append(loss.item())
+
+        # Check CRC
+        if demodulate and receiver:
+            mixture_np = to_complex(mixture.squeeze().cpu()).numpy()
+            target_np = to_complex(target.squeeze().cpu()).numpy()
+            output_np = to_complex(output.squeeze().cpu()).numpy()
+
+            crc_counts["mixture"].append(check_crc(mixture_np, receiver))
+            crc_counts["target"].append(check_crc(target_np, receiver))
+            crc_counts["output"].append(check_crc(output_np, receiver))
+
+    # Compute statistics
+    print(
+        f"\nAverage inference time: {np.mean(inference_times):.2f} ± {np.std(inference_times):.2f} ms"
+    )
+    print(f"Average SI-SNR loss: {np.mean(losses):.6f} ± {np.std(losses):.6f} dB")
+
+    if demodulate:
+        print(f"\nPacket Delivery Rates:")
+        for signal_type in ["target", "mixture", "output"]:
+            passes = crc_counts[signal_type].count("PASS")
+            total = len(crc_counts[signal_type])
+            print(
+                f"  {signal_type.capitalize():8s}: {passes/total*100:6.2f}% ({passes}/{total})"
+            )
+
+        # Model performance where target passes
+        valid_cases = 0  # Rx can demodulate target/groundtruth
+        model_success = 0
+        model_improvement = 0  # Output CRC passes but mixture fails
+        successful_losses = []
+        failed_losses = []
+
+        for target_crc, mixture_crc, output_crc, val_loss in zip(
+            crc_counts["target"], crc_counts["mixture"], crc_counts["output"], losses
+        ):
+            if target_crc == "PASS":
+                valid_cases += 1
+                if output_crc == "PASS":
+                    model_success += 1
+                    successful_losses.append(val_loss)
+                else:
+                    failed_losses.append(val_loss)
+                if mixture_crc != "PASS" and output_crc == "PASS":
+                    model_improvement += 1
+
+        if valid_cases > 0:
+            print(f"\nModel Performance (on {valid_cases} valid target packets):")
+            print(f"  Success rate: {(model_success/valid_cases)*100:.2f}%")
+            if successful_losses:
+                print(
+                    f"  Successful output loss: {np.mean(successful_losses):.6f} ± {np.std(successful_losses):.6f} dB"
+                )
+            if failed_losses:
+                print(
+                    f"  Failed output loss: {np.mean(failed_losses):.6f} ± {np.std(failed_losses):.6f} dB"
+                )
+            print(f"  Packets improved: {model_improvement/valid_cases*100:.2f}%")
 
 
 if __name__ == "__main__":
@@ -250,6 +356,11 @@ if __name__ == "__main__":
         default=4e6,
         help="Sample rate for receiver demodulation",
     )
+    parser.add_argument(
+        "--statistics",
+        action="store_true",
+        help="Run statistics test instead of interactive mode",
+    )
     args = parser.parse_args()
 
     dtype_map: dict = {
@@ -308,13 +419,23 @@ if __name__ == "__main__":
     else:
         raise FileNotFoundError(f"Checkpoint not found at {args.checkpoint_path}")
 
-    # Start interactive testing
-    test_model(
-        model=model,
-        dataset=dataset,
-        device=device,
-        loss_function=si_snr_loss_complex,
-        demodulate=args.demodulate,
-        sample_rate=args.sample_rate,
-        target_idx=args.target,
-    )
+    if args.statistics:
+        test_model_statistics(
+            model=model,
+            dataset=dataset,
+            device=device,
+            loss_function=si_snr_loss_complex,
+            demodulate=args.demodulate,
+            sample_rate=args.sample_rate,
+            target_idx=args.target,
+        )
+    else:
+        test_model_interactive(
+            model=model,
+            dataset=dataset,
+            device=device,
+            loss_function=si_snr_loss_complex,
+            demodulate=args.demodulate,
+            sample_rate=args.sample_rate,
+            target_idx=args.target,
+        )
