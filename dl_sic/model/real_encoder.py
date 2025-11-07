@@ -26,8 +26,9 @@ class RealEncoder(nn.Module):
             dtype=dtype,
         )
 
-        self.layer_norm = nn.LayerNorm(
-            normalized_shape=mid_channels,
+        self.layer_norm = nn.GroupNorm(
+            num_groups=1,
+            num_channels=mid_channels,
             dtype=dtype,
         )
 
@@ -44,11 +45,7 @@ class RealEncoder(nn.Module):
         Input shape: (batch, in_channels, T)
         """
         z = self.conv_in(x)  # (batch, mid_channels, T)
-
-        z_ln = z.transpose(1, 2)  # (batch, T, mid_channels)
-        z_ln = self.layer_norm(z_ln)
-        z_ln = z_ln.transpose(1, 2)  # (batch, mid_channels, T)
-
+        z_ln = self.layer_norm(z)
         y = self.conv_out(z_ln)  # (batch, out_channels, T)
 
         return y, z

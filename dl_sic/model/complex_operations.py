@@ -142,16 +142,15 @@ def _inv_sqrt_2x2(
 
 def _whiten2x2_layer_norm(
     x: torch.Tensor,  # Real(!) input tensor of shape (2, batch, features/channels, ...)
-    normalized_shape: list[int],  # (features/channels, ...)
     eps: float = 1e-5,  # Ridge coefficient to stabilise the estimate of the covariance
 ) -> torch.Tensor:  # Returns real(!) stacked tensor
     """
-    Layer Norm Whitening (centring and scaling) adapted from complextorch library
+    Global Layer Norm Whitening (centring and scaling) adapted from complextorch library
     """
     assert x.dim() >= 3  # Assume tensor has shape (2, B, F, ...)
 
     # Axes over which to compute mean and covariance
-    axes = [-(i + 1) for i in range(len(normalized_shape))]
+    axes = [-(i + 1) for i in range(x.dim() - 2)]  # Global: All except (2, B)
     mean = x.mean(dim=axes, keepdim=True)
     x -= mean
     var = (x * x).mean(dim=axes) + eps
@@ -172,9 +171,8 @@ def _whiten2x2_layer_norm(
     )
 
 
-def complex_layer_norm(
+def complex_global_layer_norm(
     x: torch.Tensor,  # Complex (B, F, ...) or Real (2, B, F, ...) input tensor
-    normalized_shape: list[int],  # shape (features/channels, ...)
     weight: torch.Tensor | None = None,  # Real(!) tensor of shape (2, 2, features)
     bias: torch.Tensor | None = None,  # Real(!) tensor of shape (2, features)
     eps: float = 1e-5,  # Ridge coefficient to stabilise covariance estimate
@@ -188,19 +186,29 @@ def complex_layer_norm(
     if complex_input_output:
         x = torch.stack((x.real, x.imag), dim=0)  # Shape (B, F, ...) -> (2, B, F, ...)
 
-    z = _whiten2x2_layer_norm(x, normalized_shape, eps=eps)
+    z = _whiten2x2_layer_norm(x, eps=eps)
 
     # Apply affine transformation with learnable parameters Gamma and Beta (Trabelsi et al., 2018)
-    if weight is not None and bias is not None:
-        shape = *([1] * (x.dim() - 1 - len(normalized_shape))), *normalized_shape
-        weight = weight.view(2, 2, *shape)
-        z = torch.stack(
-            [
-                z[0] * weight[0, 0] + z[1] * weight[0, 1],
-                z[0] * weight[1, 0] + z[1] * weight[1, 1],
-            ],
-            dim=0,
-        ) + bias.view(2, *shape)
+    if None not in (weight, bias):
+        assert (
+            weight.shape[-1] == bias.shape[-1]
+        ), "Feature/channel dimension mismatch between weight and bias."
+
+        num_channels = weight.shape[-1]
+        shape = [num_channels] + ([1] * (x.dim() - 3))
+        weight = weight.view(2, 2, 1, *shape)
+        bias = bias.view(2, 1, *shape)
+
+        z = (
+            torch.stack(
+                [
+                    z[0] * weight[0, 0] + z[1] * weight[0, 1],
+                    z[0] * weight[1, 0] + z[1] * weight[1, 1],
+                ],
+                dim=0,
+            )
+            + bias
+        )
 
     if complex_input_output:
         return torch.complex(z[0], z[1])  # Complex shape (B, F, ...)
@@ -219,7 +227,7 @@ class ComplexLayerNorm(nn.Module):
 
     def __init__(
         self,
-        normalized_shape: int | list[int] | torch.Size,
+        num_channels: int,
         *,
         eps: float = 1e-5,
         elementwise_affine: bool = True,
@@ -228,14 +236,7 @@ class ComplexLayerNorm(nn.Module):
     ) -> None:
         super().__init__()
 
-        # Convert `normalized_shape` to `torch.Size`
-        if isinstance(normalized_shape, int):
-            normalized_shape = torch.Size([normalized_shape])
-        elif isinstance(normalized_shape, list):
-            normalized_shape = torch.Size(normalized_shape)
-        assert isinstance(normalized_shape, torch.Size)
-
-        self.normalized_shape = tuple(normalized_shape)
+        self.num_channels = num_channels
         self.eps = eps
         self.elementwise_affine = elementwise_affine
         self.complex_io = complex_input_output
@@ -250,8 +251,8 @@ class ComplexLayerNorm(nn.Module):
 
         # Create parameters for Gamma and Beta for weight and bias
         if self.elementwise_affine:
-            self.weight = nn.Parameter(torch.ones(2, 2, *normalized_shape, dtype=dtype))
-            self.bias = nn.Parameter(torch.zeros(2, *normalized_shape, dtype=dtype))
+            self.weight = nn.Parameter(torch.ones(2, 2, num_channels, dtype=dtype))
+            self.bias = nn.Parameter(torch.zeros(2, num_channels, dtype=dtype))
         else:
             self.register_parameter("weight", None)
             self.register_parameter("bias", None)
@@ -265,20 +266,14 @@ class ComplexLayerNorm(nn.Module):
         self.weight.data.copy_(
             0.70710678118
             * torch.eye(2, dtype=self.weight.dtype).view(
-                2, 2, *([1] * len(self.normalized_shape))
+                2, 2, *([1] * (self.weight.dim() - 2))
             )
         )
         torch.nn.init.zeros_(self.bias)
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
-        # Sanity check to make sure the shapes match
-        assert (
-            self.normalized_shape == input.shape[-len(self.normalized_shape) :]
-        ), "Expected normalized_shape to match last dimensions of input shape!"
-
-        return complex_layer_norm(
+        return complex_global_layer_norm(
             input,
-            self.normalized_shape,
             self.weight,
             self.bias,
             self.eps,

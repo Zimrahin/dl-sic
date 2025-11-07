@@ -29,8 +29,9 @@ class RealDilatedConv(nn.Module):
         )
 
         self.prelu_in = nn.PReLU(init=negative_slope, dtype=dtype)
-        self.layer_norm_in = nn.LayerNorm(
-            normalized_shape=mid_channels,
+        self.layer_norm_in = nn.GroupNorm(
+            num_groups=1,
+            num_channels=mid_channels,
             dtype=dtype,
         )
 
@@ -48,8 +49,9 @@ class RealDilatedConv(nn.Module):
         )
 
         self.prelu_out = nn.PReLU(init=negative_slope, dtype=dtype)
-        self.layer_norm_out = nn.LayerNorm(
-            normalized_shape=mid_channels,
+        self.layer_norm_out = nn.GroupNorm(
+            num_groups=1,
+            num_channels=mid_channels,
             dtype=dtype,
         )
 
@@ -69,18 +71,14 @@ class RealDilatedConv(nn.Module):
         # Bottleneck, from in_channels to mid_channels
         y = self.conv_in(x)  # (batch, mid_channels, T)
         y = self.prelu_in(y)  # (batch, mid_channels, T)
-        y = y.transpose(1, 2)  # (batch, T, mid_channels)
         y = self.layer_norm_in(y)
-        y = y.transpose(1, 2)  # (batch, mid_channels, T)
 
         for dconv in self.dconvs:
             y = dconv(y)
 
         # Bottleneck, from mid_channels to in_channels
         y = self.prelu_out(y)  # (batch, mid_channels, T)
-        y = y.transpose(1, 2)  # (batch, T, mid_channels)
         y = self.layer_norm_out(y)
-        y = y.transpose(1, 2)  # (batch, mid_channels, T)
         y = self.conv_out(y)  # (batch, in_channels, T)
 
         return y + x  # Skip connection

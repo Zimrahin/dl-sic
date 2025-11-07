@@ -34,7 +34,7 @@ class ComplexEncoder(nn.Module):
         )
 
         self.layer_norm = ComplexLayerNorm(
-            normalized_shape=mid_channels,
+            num_channels=mid_channels,
             complex_input_output=self.dtype_is_complex,
             dtype=dtype,
         )
@@ -61,10 +61,7 @@ class ComplexEncoder(nn.Module):
         # Normalise only in features (mid_channels) and not in time
         # This is to be time-length agnostic.
         # Layer Norm learns the affine transformation parameters with normalised shape
-        z_ln = z.transpose(-1, -2)  # ((2), batch, T, mid_channels)
-        z_ln = self.layer_norm(z_ln)
-        z_ln = z_ln.transpose(-1, -2)  # ((2), batch, mid_channels, T)
-
+        z_ln = self.layer_norm(z)
         y = self.conv_out(z_ln)  # ((2), batch, out_channels, T)
 
         return y, z

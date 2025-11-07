@@ -40,7 +40,7 @@ class ComplexDilatedConv(nn.Module):
 
         self.prelu_in = ComplexPReLU(init=negative_slope, dtype=dtype)
         self.layer_norm_in = ComplexLayerNorm(
-            normalized_shape=mid_channels,
+            num_channels=mid_channels,
             complex_input_output=self.dtype_is_complex,
             dtype=dtype,
         )
@@ -60,7 +60,7 @@ class ComplexDilatedConv(nn.Module):
 
         self.prelu_out = ComplexPReLU(init=negative_slope, dtype=dtype)
         self.layer_norm_out = ComplexLayerNorm(
-            normalized_shape=mid_channels,
+            num_channels=mid_channels,
             complex_input_output=self.dtype_is_complex,
             dtype=dtype,
         )
@@ -82,18 +82,14 @@ class ComplexDilatedConv(nn.Module):
         # Bottleneck, from in_channels to mid_channels
         y = self.conv_in(x)  # (batch, mid_channels, T)
         y = self.prelu_in(y)  # (batch, mid_channels, T)
-        y = y.transpose(-1, -2)  # (batch, T, mid_channels)
         y = self.layer_norm_in(y)
-        y = y.transpose(-1, -2)  # (batch, mid_channels, T)
 
         for dconv in self.dconvs:
             y = dconv(y)
 
         # Bottleneck, from mid_channels to in_channels
         y = self.prelu_out(y)  # (batch, mid_channels, T)
-        y = y.transpose(-1, -2)  # (batch, T, mid_channels)
         y = self.layer_norm_out(y)
-        y = y.transpose(-1, -2)  # (batch, mid_channels, T)
         y = self.conv_out(y)  # (batch, in_channels, T)
 
         return y + x  # Skip connection
