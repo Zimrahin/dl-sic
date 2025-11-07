@@ -42,6 +42,7 @@ class RealTDCRNet(nn.Module):
                     in_channels=N,
                     mid_channels=U,
                     dilation=2**v,
+                    number_dconvs=2,
                     dtype=dtype,
                 )
                 for v in range(V)
@@ -60,6 +61,7 @@ class RealTDCRNet(nn.Module):
                     in_channels=N,
                     mid_channels=U,
                     dilation=2**v,
+                    number_dconvs=2,
                     dtype=dtype,
                 )
                 for v in range(V)

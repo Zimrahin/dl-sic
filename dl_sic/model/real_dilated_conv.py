@@ -4,21 +4,24 @@ import torch.nn as nn
 
 class RealDilatedConv(nn.Module):
     """
-    Real Dilated Convolution Module that treats real/imaginary as independent channels
+    Depth-Dilated-Convolution Module from Conv-TasNet (Luo et al., 2019).
     """
 
     def __init__(
         self,
         in_channels: int,
-        mid_channels: int = 128,  # U in paper
+        mid_channels: int,
         *,
-        kernel_size: int = 3,  # S in paper
-        dilation: int = 1,  # 2**(V-1) for each added CDC
-        negative_slope: float = 0.01,  # For PReLU (Leaky ReLU with learnt slope)
-        number_dconvs: int = 2,  # Number of dilated conv layers
-        dtype: torch.dtype = torch.float32,
+        kernel_size: int = 3,
+        dilation: int = 1,
+        negative_slope: float = 0.25,  # For PReLU
+        number_dconvs: int = 1,  # Hidden depth-dilated conv layers
+        skip_connection: bool = True,
+        dtype: torch.dtype | None = None,
     ) -> None:
         super().__init__()
+
+        self.skip = skip_connection
 
         self.conv_in = nn.Conv1d(
             in_channels=in_channels,
@@ -33,6 +36,7 @@ class RealDilatedConv(nn.Module):
             num_groups=1,
             num_channels=mid_channels,
             dtype=dtype,
+            eps=1e-08,
         )
 
         self.dconvs = nn.ModuleList(
@@ -53,6 +57,7 @@ class RealDilatedConv(nn.Module):
             num_groups=1,
             num_channels=mid_channels,
             dtype=dtype,
+            eps=1e-08,
         )
 
         self.conv_out = nn.Conv1d(
@@ -81,11 +86,15 @@ class RealDilatedConv(nn.Module):
         y = self.layer_norm_out(y)
         y = self.conv_out(y)  # (batch, in_channels, T)
 
+        if not self.skip:
+            return y
+
         return y + x  # Skip connection
 
 
 def test_model():
     in_channels = 32
+    mid_channels = 128
     batch_size = 4
     signal_length = 2048  # T
     dtypes = [torch.float32]
@@ -93,7 +102,12 @@ def test_model():
     for dtype in dtypes:
         print(f"Testing dtype: {dtype}")
 
-        model = RealDilatedConv(in_channels, dtype=dtype)
+        model = RealDilatedConv(
+            in_channels,
+            mid_channels,
+            number_dconvs=2,
+            dtype=dtype,
+        )
 
         total_params = sum(p.numel() for p in model.parameters())
         total_memory = sum(p.element_size() * p.nelement() for p in model.parameters())
