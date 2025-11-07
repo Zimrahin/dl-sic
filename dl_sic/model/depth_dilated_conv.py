@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 
-class RealDilatedConv(nn.Module):
+class DepthDilatedConv(nn.Module):
     """
     Depth-Dilated-Convolution Module from Conv-TasNet (Luo et al., 2019).
     """
@@ -102,7 +102,7 @@ def test_model():
     for dtype in dtypes:
         print(f"Testing dtype: {dtype}")
 
-        model = RealDilatedConv(
+        model = DepthDilatedConv(
             in_channels,
             mid_channels,
             number_dconvs=2,

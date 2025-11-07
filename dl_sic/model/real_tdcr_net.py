@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from .real_encoder import RealEncoder
-from .real_dilated_conv import RealDilatedConv
+from .depth_dilated_conv import DepthDilatedConv
 from .real_lstm import RealLSTM
 from .real_decoder import RealDecoder
 
@@ -38,7 +38,7 @@ class RealTDCRNet(nn.Module):
 
         self.cdc_left = nn.ModuleList(
             [
-                RealDilatedConv(
+                DepthDilatedConv(
                     in_channels=N,
                     mid_channels=U,
                     dilation=2**v,
@@ -57,7 +57,7 @@ class RealTDCRNet(nn.Module):
 
         self.cdc_right = nn.ModuleList(
             [
-                RealDilatedConv(
+                DepthDilatedConv(
                     in_channels=N,
                     mid_channels=U,
                     dilation=2**v,
