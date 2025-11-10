@@ -1,10 +1,8 @@
 import torch
 import torch.nn as nn
 
-from .real_encoder import RealEncoder
 from .depth_dilated_conv import DepthDilatedConv
 from .real_lstm import RealLSTM
-from .real_decoder import RealDecoder
 
 
 class RealTDCRNet(nn.Module):
@@ -21,18 +19,44 @@ class RealTDCRNet(nn.Module):
         V: int = 8,  # Dilated convolutions on each side of the LSTM
         *,
         encoder_kernel_size: int = 3,
-        decoder_kernel_size: int = 3,
         dtype=torch.float32,
     ) -> None:
         super().__init__()
 
         self.dtype = dtype
 
-        self.encoder = RealEncoder(
-            in_channels=2,  # Real+imaginary as separate channels
-            mid_channels=M,
-            out_channels=N,
+        self.encoder = nn.Conv1d(
+            in_channels=2,
+            out_channels=M,
             kernel_size=encoder_kernel_size,
+            padding="same",
+            dtype=dtype,
+        )
+        self.layer_norm_in = nn.GroupNorm(
+            num_groups=1,
+            num_channels=M,
+            dtype=dtype,
+        )
+        self.decoder = nn.Conv1d(
+            in_channels=M,
+            out_channels=2,
+            kernel_size=encoder_kernel_size,
+            padding="same",
+            dtype=dtype,
+        )
+
+        self.conv_in = nn.Conv1d(
+            in_channels=M,
+            out_channels=N,
+            kernel_size=encoder_kernel_size,  # Same as encoder in Guo et al., 2024, but pointwise in Conv-TasNet, Luo et al., 2019
+            padding="same",
+            dtype=dtype,
+        )
+        self.conv_out = nn.Conv1d(
+            in_channels=N,
+            out_channels=M,
+            kernel_size=1,  # Pointwise 1x1-conv
+            padding="same",
             dtype=dtype,
         )
 
@@ -70,21 +94,7 @@ class RealTDCRNet(nn.Module):
 
         # Real-valued operations
         self.prelu_out = nn.PReLU(dtype=dtype)
-        self.conv_out = nn.Conv1d(
-            in_channels=N,
-            out_channels=M,
-            kernel_size=1,
-            padding="same",
-            dtype=dtype,
-        )
         self.sigmoid_out = nn.Sigmoid()
-
-        self.decoder = RealDecoder(
-            in_channels=M,
-            out_channels=2,  # Output real+imaginary channels
-            kernel_size=decoder_kernel_size,
-            dtype=dtype,
-        )
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         """
@@ -113,7 +123,8 @@ class RealTDCRNet(nn.Module):
             ), f"Expected 2 real channels, got {input.size(1)} channels"
 
         # Forward pass through real network
-        y, z = self.encoder(input)  # (batch, N, T), (batch, M, T)
+        z = self.encoder(input)  # (batch, M, T)
+        y = self.conv_in(self.layer_norm_in(z))  # (batch, N, T)
 
         for cdc in self.cdc_left:
             y = cdc(y) + y  # (batch, N, T), residual connection

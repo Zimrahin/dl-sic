@@ -1,12 +1,10 @@
 import torch
 import torch.nn as nn
 
-from .complex_encoder import ComplexEncoder
 from .complex_dilated_conv import ComplexDilatedConv
 from .complex_lstm import ComplexLSTM
-from .complex_decoder import ComplexDecoder
 from .activation_functions import ComplexPReLU, ComplexSigmoid
-from .complex_operations import ComplexConv1d
+from .complex_operations import ComplexConv1d, ComplexLayerNorm
 
 
 class ComplexTDCRNet(nn.Module):
@@ -22,7 +20,6 @@ class ComplexTDCRNet(nn.Module):
         V: int = 8,  # Dilated convolutions on each side of the LSTM
         *,
         encoder_kernel_size: int = 3,
-        decoder_kernel_size: int = 3,
         dtype=torch.complex64,
     ) -> None:
         super().__init__()
@@ -34,11 +31,38 @@ class ComplexTDCRNet(nn.Module):
             torch.complex128,
         )
 
-        self.encoder = ComplexEncoder(
+        self.encoder = ComplexConv1d(
             in_channels=1,
-            mid_channels=M,
-            out_channels=N,
+            out_channels=M,
             kernel_size=encoder_kernel_size,
+            padding="same",
+            dtype=dtype,
+        )
+        self.layer_norm_in = ComplexLayerNorm(
+            num_channels=M,
+            complex_input_output=self.dtype_is_complex,
+            dtype=dtype,
+        )
+        self.decoder = ComplexConv1d(
+            in_channels=M,
+            out_channels=1,
+            kernel_size=encoder_kernel_size,
+            padding="same",
+            dtype=dtype,
+        )
+
+        self.conv_in = ComplexConv1d(
+            in_channels=M,
+            out_channels=N,
+            kernel_size=encoder_kernel_size,  # Same as encoder in Guo et al., 2024, but pointwise in Conv-TasNet, Luo et al., 2019
+            padding="same",
+            dtype=dtype,
+        )
+        self.conv_out = ComplexConv1d(
+            in_channels=N,
+            out_channels=M,
+            kernel_size=1,  # Pointwise 1x1-conv (based on Conv-TasNet, Luo et al., 2019)
+            padding="same",
             dtype=dtype,
         )
 
@@ -66,25 +90,8 @@ class ComplexTDCRNet(nn.Module):
             for v in range(V)
         )
 
-        # Based on Conv-TasNet, Luo et al., 2019, Fig. 1.B
         self.prelu_out = ComplexPReLU(dtype=dtype)
-        self.conv_out = ComplexConv1d(
-            in_channels=N,
-            out_channels=M,  # Expand channels to mid_channels to match z
-            kernel_size=1,  # Pointwise 1x1-conv (based on Conv-TasNet, Luo et al., 2019)
-            padding=0,
-            dtype=dtype,
-        )
-
         self.sigmoid_out = ComplexSigmoid()
-
-        # From ConvTasNet (Luo et al., 2019):
-        self.decoder = ComplexDecoder(
-            in_channels=M,
-            out_channels=1,
-            kernel_size=decoder_kernel_size,
-            dtype=dtype,
-        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -116,7 +123,8 @@ class ComplexTDCRNet(nn.Module):
             x = x.transpose(0, 1).unsqueeze(2)  # (2, batch, 1, T)
 
         # Forward pass
-        y, z = self.encoder(x)  # (batch, N, T), (batch, M, T)
+        z = self.encoder(x)  # (batch, M, T)
+        y = self.conv_in(self.layer_norm_in(z))  # (batch, N, T)
 
         for cdc in self.cdc_left:
             y = cdc(y) + y  # (batch, N, T), residual connection
