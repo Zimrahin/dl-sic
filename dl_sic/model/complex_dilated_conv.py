@@ -92,7 +92,7 @@ class ComplexDilatedConv(nn.Module):
         y = self.layer_norm_out(y)
         y = self.conv_out(y)  # (batch, in_channels, T)
 
-        return y + x  # Skip connection
+        return y
 
 
 def test_model():

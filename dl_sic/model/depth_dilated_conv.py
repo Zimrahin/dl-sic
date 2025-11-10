@@ -16,12 +16,9 @@ class DepthDilatedConv(nn.Module):
         dilation: int = 1,
         negative_slope: float = 0.25,  # For PReLU
         number_dconvs: int = 1,  # Hidden depth-dilated conv layers
-        skip_connection: bool = True,
         dtype: torch.dtype | None = None,
     ) -> None:
         super().__init__()
-
-        self.skip = skip_connection
 
         self.conv_in = nn.Conv1d(
             in_channels=in_channels,
@@ -86,10 +83,7 @@ class DepthDilatedConv(nn.Module):
         y = self.layer_norm_out(y)
         y = self.conv_out(y)  # (batch, in_channels, T)
 
-        if not self.skip:
-            return y
-
-        return y + x  # Skip connection
+        return y
 
 
 def test_model():

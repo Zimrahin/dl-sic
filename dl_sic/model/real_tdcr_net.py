@@ -116,12 +116,12 @@ class RealTDCRNet(nn.Module):
         y, z = self.encoder(input)  # (batch, N, T), (batch, M, T)
 
         for cdc in self.cdc_left:
-            y = cdc(y)  # (batch, N, T)
+            y = cdc(y) + y  # (batch, N, T), residual connection
 
         y = self.lstm(y)  # (batch, N, T)
 
         for cdc in self.cdc_right:
-            y = cdc(y)  # (batch, N, T)
+            y = cdc(y) + y  # (batch, N, T), residual connection
 
         y = self.prelu_out(y)
         y = self.conv_out(y)  # (batch, M, T)
