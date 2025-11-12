@@ -15,7 +15,7 @@ class ComplexTDCRNet(nn.Module):
     def __init__(
         self,
         M: int = 128,  # Mask channels
-        N: int = 32,  # Out channels of encoder and input to LSTM = H
+        N: int = 32,  # Bottleneck features, input to TCN and LSTM
         U: int = 128,  # Hidden channels in depth dilated convolution block (TCN)
         V: int = 8,  # TCN blocks on each side of the LSTM
         *,
