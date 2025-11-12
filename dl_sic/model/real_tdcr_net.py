@@ -19,6 +19,7 @@ class RealTDCRNet(nn.Module):
         V: int = 8,  # TCN blocks on each side of the LSTM
         *,
         encoder_kernel_size: int = 3,
+        n_dconvs_in_tcn: int = 2,  # Number of Depth-Dilated Convs in TCN blocks
         dtype=torch.float32,
     ) -> None:
         super().__init__()
@@ -66,7 +67,7 @@ class RealTDCRNet(nn.Module):
                     in_channels=N,
                     hidden_channels=U,
                     dilation=2**v,
-                    number_dconvs=2,
+                    number_dconvs=n_dconvs_in_tcn,
                     dtype=dtype,
                 )
                 for v in range(V)
@@ -85,7 +86,7 @@ class RealTDCRNet(nn.Module):
                     in_channels=N,
                     hidden_channels=U,
                     dilation=2**v,
-                    number_dconvs=2,
+                    number_dconvs=n_dconvs_in_tcn,
                     dtype=dtype,
                 )
                 for v in range(V)
