@@ -14,7 +14,7 @@ class ComplexDilatedConv(nn.Module):
     def __init__(
         self,
         in_channels: int,
-        mid_channels: int = 128,  # U in paper (channels in dilated conv)
+        hidden_channels: int = 128,  # U in paper
         *,
         kernel_size: int = 3,  # S in paper
         dilation: int = 1,  # 2**(V-1) for each added CDC
@@ -32,7 +32,7 @@ class ComplexDilatedConv(nn.Module):
 
         self.conv_in = ComplexConv1d(
             in_channels=in_channels,
-            out_channels=mid_channels,  # Expand channels to mid_channels to match dilated conv size
+            out_channels=hidden_channels,  # Expand channels to mid_channels to match dilated conv size
             kernel_size=1,  # Pointwise 1x1-conv (based on Conv-TasNet, Luo et al., 2019)
             padding="same",
             dtype=dtype,
@@ -40,19 +40,19 @@ class ComplexDilatedConv(nn.Module):
 
         self.prelu_in = ComplexPReLU(init=negative_slope, dtype=dtype)
         self.layer_norm_in = ComplexLayerNorm(
-            num_channels=mid_channels,
+            num_channels=hidden_channels,
             complex_input_output=self.dtype_is_complex,
             dtype=dtype,
         )
 
         self.dconvs = nn.ModuleList(
             ComplexConv1d(
-                in_channels=mid_channels,
-                out_channels=mid_channels,
+                in_channels=hidden_channels,
+                out_channels=hidden_channels,
                 kernel_size=kernel_size,
                 padding="same",
                 dilation=dilation,
-                groups=mid_channels,  # Depthwise convolution (Conv-TasNet, Luo et al., 2019))
+                groups=hidden_channels,  # Depthwise convolution (Conv-TasNet, Luo et al., 2019))
                 dtype=dtype,
             )
             for _ in range(number_dconvs)
@@ -60,13 +60,13 @@ class ComplexDilatedConv(nn.Module):
 
         self.prelu_out = ComplexPReLU(init=negative_slope, dtype=dtype)
         self.layer_norm_out = ComplexLayerNorm(
-            num_channels=mid_channels,
+            num_channels=hidden_channels,
             complex_input_output=self.dtype_is_complex,
             dtype=dtype,
         )
 
         self.conv_out = ComplexConv1d(
-            in_channels=mid_channels,
+            in_channels=hidden_channels,
             out_channels=in_channels,  # Back to input size
             kernel_size=1,  # Pointwise 1x1-conv (based on Conv-TasNet, Luo et al., 2019)
             padding="same",

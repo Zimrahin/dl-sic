@@ -10,7 +10,7 @@ class DepthDilatedConv(nn.Module):
     def __init__(
         self,
         in_channels: int,
-        mid_channels: int,
+        hidden_channels: int,
         *,
         kernel_size: int = 3,
         dilation: int = 1,
@@ -22,7 +22,7 @@ class DepthDilatedConv(nn.Module):
 
         self.conv_in = nn.Conv1d(
             in_channels=in_channels,
-            out_channels=mid_channels,
+            out_channels=hidden_channels,
             kernel_size=1,  # Pointwise 1x1-conv
             padding="same",
             dtype=dtype,
@@ -31,19 +31,19 @@ class DepthDilatedConv(nn.Module):
         self.prelu_in = nn.PReLU(init=negative_slope, dtype=dtype)
         self.layer_norm_in = nn.GroupNorm(
             num_groups=1,
-            num_channels=mid_channels,
+            num_channels=hidden_channels,
             dtype=dtype,
             eps=1e-08,
         )
 
         self.dconvs = nn.ModuleList(
             nn.Conv1d(
-                in_channels=mid_channels,
-                out_channels=mid_channels,
+                in_channels=hidden_channels,
+                out_channels=hidden_channels,
                 kernel_size=kernel_size,
                 padding="same",
                 dilation=dilation,
-                groups=mid_channels,  # Depthwise convolution
+                groups=hidden_channels,  # Depthwise convolution
                 dtype=dtype,
             )
             for _ in range(number_dconvs)
@@ -52,13 +52,13 @@ class DepthDilatedConv(nn.Module):
         self.prelu_out = nn.PReLU(init=negative_slope, dtype=dtype)
         self.layer_norm_out = nn.GroupNorm(
             num_groups=1,
-            num_channels=mid_channels,
+            num_channels=hidden_channels,
             dtype=dtype,
             eps=1e-08,
         )
 
         self.conv_out = nn.Conv1d(
-            in_channels=mid_channels,
+            in_channels=hidden_channels,
             out_channels=in_channels,  # Back to input size
             kernel_size=1,  # Pointwise 1x1-conv
             padding="same",

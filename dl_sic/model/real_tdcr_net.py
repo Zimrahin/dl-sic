@@ -13,10 +13,10 @@ class RealTDCRNet(nn.Module):
 
     def __init__(
         self,
-        M: int = 128,  # Middle channels in the real encoder
+        M: int = 128,  # Mask channels
         N: int = 32,  # Out channels of encoder and input to LSTM = H
-        U: int = 128,  # Middle channels in real dilated convolution
-        V: int = 8,  # Dilated convolutions on each side of the LSTM
+        U: int = 128,  # Hidden channels in depth dilated convolution block (TCN)
+        V: int = 8,  # TCN blocks on each side of the LSTM
         *,
         encoder_kernel_size: int = 3,
         dtype=torch.float32,
@@ -60,11 +60,11 @@ class RealTDCRNet(nn.Module):
             dtype=dtype,
         )
 
-        self.cdc_left = nn.ModuleList(
+        self.tcn_left = nn.ModuleList(
             [
                 DepthDilatedConv(
                     in_channels=N,
-                    mid_channels=U,
+                    hidden_channels=U,
                     dilation=2**v,
                     number_dconvs=2,
                     dtype=dtype,
@@ -79,11 +79,11 @@ class RealTDCRNet(nn.Module):
             dtype=dtype,
         )
 
-        self.cdc_right = nn.ModuleList(
+        self.tcn_right = nn.ModuleList(
             [
                 DepthDilatedConv(
                     in_channels=N,
-                    mid_channels=U,
+                    hidden_channels=U,
                     dilation=2**v,
                     number_dconvs=2,
                     dtype=dtype,
@@ -126,12 +126,12 @@ class RealTDCRNet(nn.Module):
         z = self.encoder(input)  # (batch, M, T)
         y = self.conv_in(self.layer_norm_in(z))  # (batch, N, T)
 
-        for cdc in self.cdc_left:
+        for cdc in self.tcn_left:
             y = cdc(y) + y  # (batch, N, T), residual connection
 
         y = self.lstm(y)  # (batch, N, T)
 
-        for cdc in self.cdc_right:
+        for cdc in self.tcn_right:
             y = cdc(y) + y  # (batch, N, T), residual connection
 
         y = self.prelu_out(y)
