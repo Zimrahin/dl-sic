@@ -95,6 +95,7 @@ class Trainer:
                 "model_state": self.model.state_dict(),
                 "optimiser_state": self.optimiser.state_dict(),
                 "scheduler_state": self.scheduler.state_dict(),
+                "model_type": self.model.__class__.__name__,
             },
             os.path.join(self.checkpoints_dir, "last_checkpoint.pth"),
         )
