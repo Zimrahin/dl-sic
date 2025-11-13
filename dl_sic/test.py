@@ -14,6 +14,8 @@ from utils.loss_functions import si_snr_loss_complex
 from data.generator import SignalDatasetGenerator, SimulationConfig
 from data.tranceiver.receiver import ReceiverBLE, Receiver802154, Receiver
 
+from model_factory import ModelFactory
+
 
 def to_complex(x: torch.Tensor) -> torch.Tensor:
     """Helper to convert real 2-channel tensor to complex tensor"""
@@ -383,22 +385,15 @@ if __name__ == "__main__":
     )
     print(f"Loaded dataset with {len(dataset)} examples")
 
-    M, N, U, V = (
-        args.model_param_M,
-        args.model_param_N,
-        args.model_param_U,
-        args.model_param_V,
-    )  # TDCR net parameters
+    model_params = {
+        "M": args.model_param_M,
+        "N": args.model_param_N,
+        "U": args.model_param_U,
+        "V": args.model_param_V,
+    }  # TDCR net parameters
 
     # Initialise model
-    if args.model_type == "complex":
-        model = ComplexTDCRNet(M, N, U, V, dtype=dtype).to(device)
-        print("Using complex model (complex arithmetic)")
-    else:
-        if dtype in (torch.complex32, torch.complex64, torch.complex128):
-            raise ValueError(f"Real model cannot use complex dtype {dtype}")
-        model = RealTDCRNet(M, N, U, V, dtype=dtype).to(device)
-        print("Using real model (independent real/imag channels)")
+    model = ModelFactory.create_model(args.model_type, model_params, dtype, device)
     total_params = sum(p.numel() for p in model.parameters())
     total_memory = sum(p.element_size() * p.nelement() for p in model.parameters())
     print(f"Trainable parameters: {total_params:,}")

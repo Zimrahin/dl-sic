@@ -8,11 +8,14 @@ from tqdm import tqdm
 
 from model.complex_tdcr_net import ComplexTDCRNet
 from model.real_tdcr_net import RealTDCRNet
+
 from utils.training import set_seed, TrainingLogger, create_checkpoint_dir
 from utils.dataset import DummyDataset, LoadDataset, create_dataloaders
-
 from utils.loss_functions import si_snr_loss_complex
+
 from data.generator import SignalDatasetGenerator, SimulationConfig
+
+from model_factory import ModelFactory
 
 
 def train_epoch(
@@ -116,7 +119,7 @@ def train_tdcr_net(
     pretrained_weights: str | None = None,
     num_workers: int = 0,  # Default DataLoader value
     model_param_M: int = 128,
-    model_param_N: int = 32,
+    model_param_N: int = 64,
     model_param_U: int = 128,
     model_param_V: int = 8,
     checkpoints_dir: str = "./checkpoints",
@@ -127,12 +130,12 @@ def train_tdcr_net(
     seed = 0  # For reproducibility
     logger = TrainingLogger(checkpoints_dir, resume=resume)
 
-    M, N, U, V = (
-        model_param_M,
-        model_param_N,
-        model_param_U,
-        model_param_V,
-    )  # TDCR net parameters
+    model_params = {
+        "M": model_param_M,
+        "N": model_param_N,
+        "U": model_param_U,
+        "V": model_param_V,
+    }  # TDCR net parameters
 
     set_seed(seed)
     os.makedirs(checkpoints_dir, exist_ok=True)
@@ -140,14 +143,7 @@ def train_tdcr_net(
     print(f"Using device: {device}")
 
     # Initialise model, dataloaders, loss function, and optimiser
-    if model_type == "complex":
-        model = ComplexTDCRNet(M, N, U, V, dtype=dtype).to(device)
-        print("Using complex model (complex arithmetic)")
-    else:
-        if dtype in (torch.complex32, torch.complex64, torch.complex128):
-            raise ValueError(f"Real model cannot use complex dtype {dtype}")
-        model = RealTDCRNet(M, N, U, V, dtype=dtype).to(device)
-        print("Using real model (independent real/imag channels)")
+    model = ModelFactory.create_model(model_type, model_params, dtype, device)
 
     total_params = sum(p.numel() for p in model.parameters())
     total_memory = sum(p.element_size() * p.nelement() for p in model.parameters())
