@@ -289,15 +289,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model_type",
         type=str,
-        choices=["complex", "real"],
-        default="complex",
-        help="Type of model: complex (complex arithmetic) or real (independent channels)",
+        choices=["complextdcr", "tdcr"],
+        default="tdcr",
+        help="Type of model to evaluate",
     )
     parser.add_argument(
         "--dtype",
         type=str,
         choices=["complex64", "float32"],
-        default="complex64",
+        default="float32",
         help="Data type for model parameters and operations",
     )
     parser.add_argument(

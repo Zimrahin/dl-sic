@@ -22,7 +22,7 @@ source /home/$USER/.bashrc
 source activate pt_env
 
 python -u train.py \
-    --model_type "complex" \
+    --model_type "complextdcr" \
     --dtype "complex64" \
     --batch_size 1 \
     --epochs 50 \

@@ -22,7 +22,7 @@ source /home/$USER/.bashrc
 source activate pt_env
 
 python -u train.py \
-    --model_type "real" \
+    --model_type "tdcr" \
     --dtype "float32" \
     --batch_size 1 \
     --epochs 100 \

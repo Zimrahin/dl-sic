@@ -22,7 +22,7 @@ source /home/$USER/.bashrc
 source activate pt_env
 
 python -u train.py \
-    --model_type "real" \
+    --model_type "tdcr" \
     --dtype "float32" \
     --batch_size 1 \
     --epochs 1 \
@@ -35,5 +35,5 @@ python -u train.py \
     --model_param_N 64 \
     --model_param_U 128 \
     --model_param_V 8 \
-    --checkpoints_dir "./checkpoints/real_test" \
+    --checkpoints_dir "./checkpoints/tdcr_test" \
     --runtime_gen

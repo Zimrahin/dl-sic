@@ -11,11 +11,11 @@ class ModelFactory:
     ):
         """Instantiate model"""
 
-        if model_type == "complex":
+        if model_type == "complextdcr":
             model = ComplexTDCRNet(**model_params, dtype=dtype)
-        elif model_type == "real":
+        elif model_type == "tdcr":
             if dtype.is_complex:
-                raise ValueError(f"Real model cannot use complex dtype {dtype}")
+                raise ValueError(f"Real TCDRNet cannot use complex dtype {dtype}")
             model = RealTDCRNet(**model_params, dtype=dtype)
         else:
             raise ValueError(f"Unknown model type: {model_type}")
