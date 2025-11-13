@@ -26,7 +26,6 @@ class Trainer:
         learning_rate: float = 1e-3,
         weight_decay: float = 0.0,
         *,
-        model_type: str = "complex",  # Use complex arithmetic (complex convs, norms, etc.) or real (treat real/imag as independent channels)
         dtype: torch.dtype = torch.complex64,
         resume: bool = False,
         num_workers: int = 0,  # Default DataLoader value
@@ -41,7 +40,6 @@ class Trainer:
         self.epochs = epochs
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
-        self.model_type = model_type
         self.dtype = dtype
         self.num_workers = num_workers
         self.checkpoints_dir = checkpoints_dir
@@ -345,7 +343,6 @@ if __name__ == "__main__":
         epochs=args.epochs,
         learning_rate=args.learning_rate,
         weight_decay=args.weight_decay,
-        model_type=args.model_type,
         dtype=dtype,
         resume=args.resume,
         num_workers=args.num_workers,
