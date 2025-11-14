@@ -7,8 +7,6 @@ import time
 import sys
 from tqdm import tqdm
 
-from model.complex_tdcr_net import ComplexTDCRNet
-from model.real_tdcr_net import RealTDCRNet
 from utils.dataset import LoadDataset
 from utils.loss_functions import si_snr_loss_complex
 from data.generator import SignalDatasetGenerator, SimulationConfig

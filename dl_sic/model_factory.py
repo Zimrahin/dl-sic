@@ -2,7 +2,7 @@ import torch
 from inspect import signature
 
 from model.complex_tdcr_net import ComplexTDCRNet
-from model.real_tdcr_net import RealTDCRNet
+from model.tdcr_net import RealTDCRNet
 from model.tcn_conformer_net import TCNConformerNet
 
 

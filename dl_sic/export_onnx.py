@@ -1,8 +1,6 @@
 import argparse
-import os
-import re
 import torch
-from model.real_tdcr_net import RealTDCRNet
+from model.tdcr_net import RealTDCRNet
 
 
 def main():
