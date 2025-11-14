@@ -139,15 +139,19 @@ def create_checkpoint_dir(base_checkpoints_dir: str, args) -> str:
         "bfloat16": "bf16",
     }
     dtype_suffix = dtype_map.get(args.dtype, args.dtype)
+
     exp_name_parts = [
         args.model_type,
         dtype_suffix,
-        f"M{args.model_param_M}",
-        f"N{args.model_param_N}",
-        f"U{args.model_param_U}",
-        f"V{args.model_param_V}",
         f"target{args.target}",
     ]
+    for key, value in vars(args).items():
+        if key.startswith("model_param_"):
+            param_name = key.replace("model_param_", "")
+            # Only include the short parameters
+            # This prevents the name from getting too long
+            if len(param_name) <= 2:
+                exp_name_parts.append(f"{param_name}{value}")
 
     exp_name = "_".join(exp_name_parts)
     exp_dir = os.path.join(base_checkpoints_dir, exp_name)
