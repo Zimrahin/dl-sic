@@ -22,7 +22,7 @@ from .tranceiver.channel import (
 class SimulationConfig:
     sample_rate: float = 4e6
     num_signals: int = 2000
-    signal_length: int = 12000  # Samples
+    signal_length: int = 6000  # Samples
     ble_payload_size_range: tuple[int, int] = (2, 256)  # Max exclusive
     ieee802154_payload_size_range: tuple[int, int] = (2, 126)  # Max exclusive
     # Channel/impairment ranges
@@ -38,8 +38,8 @@ class SimulationConfig:
     fading_pdp_delay_range: tuple[float, float] = (0.0, 4.0)
     fading_pdp_power_range: tuple[float, float] = (0.99, 0.1)
     adc_bits_range: tuple[int, int] | None = (8, 16)  # Clipping and quantisation
-    fading_channel: bool = False  # Overrides fading options above
-    ble_address: int | None = 0x12345678  # If None, random each time
+    fading_channel: bool = True  # Overrides fading options above
+    ble_address: int | None = None  # 0x12345678  # If None, random each time
     seed: int | None = 10
 
 
