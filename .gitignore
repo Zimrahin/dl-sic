@@ -2,3 +2,4 @@ __pycache__/
 .venv/
 dl_sic/checkpoints/
 dl_sic/data/*.pt
+slurm_logs/
