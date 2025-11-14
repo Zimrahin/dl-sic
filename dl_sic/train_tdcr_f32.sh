@@ -5,7 +5,7 @@
 #SBATCH --partition=gpu          # Name of the partition
 #SBATCH --gres=gpu:1             # Number and type of GPU cards and type allocated
 #SBATCH --mem=16G                # Total memory allocated
-#SBATCH --time=10:00:00          # Total run time limit (HH:MM:SS)
+#SBATCH --time=20:00:00          # Total run time limit (HH:MM:SS)
 #SBATCH --output=%x_%j.out       # Output file name
 #SBATCH --exclude=gpu009,gpu01[2-3],gpu01[5-7]  # Exclude team nodes
 
