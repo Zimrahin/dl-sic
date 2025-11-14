@@ -1,26 +1,29 @@
 import torch
 import torch.nn as nn
+from torchaudio.models import Conformer
 
 from .depth_dilated_conv import DepthDilatedConv
-from .real_lstm import RealLSTM
 
 
-class RealTDCRNet(nn.Module):
+class TCNConformerNet2(nn.Module):
     """
-    Real Time-Domain Dilated Convolutional Recurrent Network
-    Treats real/imaginary as independent channels
+    TCN-Conformer variant with TCN blocks on both sides of Conformer
+    Similar to RealTDCRNet but with Conformer instead of LSTM
     """
 
     def __init__(
         self,
         M: int = 128,  # Mask channels
-        N: int = 64,  # Bottleneck features, input to TCN and LSTM
+        N: int = 64,  # Bottleneck features, input to TCN and Conformer
         U: int = 128,  # Hidden channels in depth dilated convolution block (TCN)
-        V: int = 8,  # TCN blocks on each side of the LSTM
+        V: int = 8,  # TCN blocks on each side of the Conformer
         *,
         encoder_kernel_size: int = 3,
-        n_dconvs_in_tcn: int = 2,  # Number of Depth-Dilated Convs in TCN blocks
-        dtype=torch.float32,
+        conformer_num_heads: int = 4,
+        conformer_ffn_times_input: int = 2,
+        conformer_num_layers: int = 2,
+        conformer_conv_kernel_size: int = 15,
+        conformer_dropout: float = 0.0,
     ) -> None:
         super().__init__()
 
@@ -29,34 +32,29 @@ class RealTDCRNet(nn.Module):
             out_channels=M,
             kernel_size=encoder_kernel_size,
             padding="same",
-            dtype=dtype,
         )
         self.layer_norm_in = nn.GroupNorm(
             num_groups=1,
             num_channels=M,
-            dtype=dtype,
         )
         self.decoder = nn.Conv1d(
             in_channels=M,
             out_channels=2,
             kernel_size=encoder_kernel_size,
             padding="same",
-            dtype=dtype,
         )
 
         self.conv_in = nn.Conv1d(
             in_channels=M,
             out_channels=N,
-            kernel_size=encoder_kernel_size,  # Same as encoder in Guo et al., 2024, but pointwise in Conv-TasNet, Luo et al., 2019
+            kernel_size=1,
             padding="same",
-            dtype=dtype,
         )
         self.conv_out = nn.Conv1d(
             in_channels=N,
             out_channels=M,
             kernel_size=1,  # Pointwise 1x1-conv
             padding="same",
-            dtype=dtype,
         )
 
         self.tcn_left = nn.ModuleList(
@@ -65,17 +63,20 @@ class RealTDCRNet(nn.Module):
                     in_channels=N,
                     hidden_channels=U,
                     dilation=2**v,
-                    number_dconvs=n_dconvs_in_tcn,
-                    dtype=dtype,
+                    number_dconvs=1,
                 )
                 for v in range(V)
             ]
         )
 
-        self.lstm = RealLSTM(
-            input_size=N,
-            hidden_size=N,
-            dtype=dtype,
+        self.conformer = Conformer(
+            input_dim=N,
+            num_heads=conformer_num_heads,
+            ffn_dim=conformer_ffn_times_input * N,
+            num_layers=conformer_num_layers,
+            depthwise_conv_kernel_size=conformer_conv_kernel_size,
+            dropout=conformer_dropout,
+            use_group_norm=True,
         )
 
         self.tcn_right = nn.ModuleList(
@@ -84,14 +85,13 @@ class RealTDCRNet(nn.Module):
                     in_channels=N,
                     hidden_channels=U,
                     dilation=2**v,
-                    number_dconvs=n_dconvs_in_tcn,
-                    dtype=dtype,
+                    number_dconvs=1,
                 )
                 for v in range(V)
             ]
         )
 
-        self.prelu_out = nn.PReLU(dtype=dtype)
+        self.prelu_out = nn.PReLU()
         self.sigmoid_out = nn.Sigmoid()
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
@@ -127,7 +127,10 @@ class RealTDCRNet(nn.Module):
         for cdc in self.tcn_left:
             y = cdc(y) + y  # (batch, N, T), residual connection
 
-        y = self.lstm(y)  # (batch, N, T)
+        y = y.transpose(1, 2)  # (batch, T, N)
+        cnf_len = torch.tensor(y.shape[0] * [y.shape[1]], device=y.device)  # B*[T]
+        y, _ = self.conformer(y, lengths=cnf_len)
+        y = y.transpose(1, 2)  # (batch, N, T)
 
         for cdc in self.tcn_right:
             y = cdc(y) + y  # (batch, N, T), residual connection
@@ -155,7 +158,7 @@ def test_model():
     for dtype in dtypes:
         print(f"Testing dtype: {dtype}")
 
-        model = RealTDCRNet(dtype=dtype, N=64)
+        model = TCNConformerNet2()
 
         total_params = sum(p.numel() for p in model.parameters())
         total_memory = sum(p.element_size() * p.nelement() for p in model.parameters())

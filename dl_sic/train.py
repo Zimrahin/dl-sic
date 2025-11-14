@@ -195,7 +195,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model_type",
         type=str,
-        choices=["complextdcr", "tdcr", "tcnconformer"],
+        choices=["complextdcr", "tdcr", "tcnconformer", "tcnconformer2"],
         default="tdcr",
         help="Type of model to train",
     )
@@ -255,7 +255,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model_param_N",
         type=int,
-        default=32,
+        default=64,
         help="Out channels of encoder and input to LSTM = H",
     )
     parser.add_argument(

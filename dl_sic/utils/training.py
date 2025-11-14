@@ -143,14 +143,13 @@ def create_checkpoint_dir(base_checkpoints_dir: str, args) -> str:
     exp_name_parts = [
         args.model_type,
         dtype_suffix,
-        f"target{args.target}",
+        f"tgt{args.target}",
     ]
     for key, value in vars(args).items():
         if key.startswith("model_param_"):
             param_name = key.replace("model_param_", "")
             # Only include the short parameters
-            # This prevents the name from getting too long
-            if len(param_name) <= 2:
+            if len(param_name) <= 4:
                 exp_name_parts.append(f"{param_name}{value}")
 
     exp_name = "_".join(exp_name_parts)

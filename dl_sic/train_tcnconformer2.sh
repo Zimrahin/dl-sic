@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=train_tcnc    # Job name equals shell file name
+#SBATCH --job-name=train_tcnc2   # Job name equals shell file name
 #SBATCH --cpus-per-gpu=1         # Dataloader num_workers + 1 (>1 if multi-threaded tasks)
 #SBATCH --partition=gpu          # Name of the partition
 #SBATCH --gres=gpu:1             # Number and type of GPU cards and type allocated
@@ -22,7 +22,7 @@ source /home/$USER/.bashrc
 source activate pt_env
 
 python -u train.py \
-    --model_type "tcnconformer" \
+    --model_type "tcnconformer2" \
     --batch_size 1 \
     --epochs 100 \
     --learning_rate 1e-3 \
@@ -31,9 +31,9 @@ python -u train.py \
     --target 1 \
     --num_workers 0 \
     --model_param_M 128 \
-    --model_param_N 64 \
+    --model_param_N 32 \
     --model_param_U 128 \
-    --model_param_V 3 \
+    --model_param_V 8 \
     --model_param_conformer_num_heads 4 \
     --model_param_conformer_ffn_times_input 2 \
     --model_param_conformer_num_layers 2 \

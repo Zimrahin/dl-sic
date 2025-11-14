@@ -4,6 +4,7 @@ from inspect import signature
 from model.complex_tdcr_net import ComplexTDCRNet
 from model.tdcr_net import RealTDCRNet
 from model.tcn_conformer_net import TCNConformerNet
+from model.tcn_conformer_net2 import TCNConformerNet2
 
 
 class ModelFactory:
@@ -16,6 +17,7 @@ class ModelFactory:
             "complextdcr": ComplexTDCRNet,
             "tdcr": RealTDCRNet,
             "tcnconformer": TCNConformerNet,
+            "tcnconformer2": TCNConformerNet2,
         }
 
         if model_type not in models:
