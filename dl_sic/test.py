@@ -289,7 +289,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model_type",
         type=str,
-        choices=["complextdcr", "tdcr"],
+        choices=["complextdcr", "tdcr", "tcnconformer"],
         default="tdcr",
         help="Type of model to evaluate",
     )
@@ -343,6 +343,30 @@ if __name__ == "__main__":
         help="Dilated convolutions on each side of the LSTM",
     )
     parser.add_argument(
+        "--model_param_conformer_num_heads",
+        type=int,
+        default=4,
+        help="Conformer num heads for TCNConformer",
+    )
+    parser.add_argument(
+        "--model_param_conformer_ffn_times_input",
+        type=int,
+        default=2,
+        help="Conformer FFN multiplier for TCNConformer",
+    )
+    parser.add_argument(
+        "--model_param_conformer_num_layers",
+        type=int,
+        default=2,
+        help="Conformer num layers for TCNConformer",
+    )
+    parser.add_argument(
+        "--model_param_conformer_conv_kernel_size",
+        type=int,
+        default=15,
+        help="Conformer conv kernel size for TCNConformer",
+    )
+    parser.add_argument(
         "--runtime_gen",
         action="store_true",
         help="Generate data on the fly instead of loading from file",
@@ -386,11 +410,10 @@ if __name__ == "__main__":
     print(f"Loaded dataset with {len(dataset)} examples")
 
     model_params = {
-        "M": args.model_param_M,
-        "N": args.model_param_N,
-        "U": args.model_param_U,
-        "V": args.model_param_V,
-    }  # TDCR net parameters
+        k.replace("model_param_", ""): v
+        for k, v in vars(args).items()
+        if k.startswith("model_param_")
+    }
 
     # Initialise model
     model = ModelFactory.create_model(args.model_type, model_params, dtype, device)
